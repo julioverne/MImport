@@ -26,10 +26,10 @@
  */
 
 #if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
+#error MImportWebServer requires ARC
 #endif
 
-#import "GCDWebServerPrivate.h"
+#import "MImportWebServerPrivate.h"
 
 #define kMultiPartBufferSize (256 * 1024)
 
@@ -41,7 +41,7 @@ typedef enum {
   kParserState_End
 } ParserState;
 
-@interface GCDWebServerMIMEStreamParser : NSObject
+@interface MImportWebServerMIMEStreamParser : NSObject
 - (id)initWithBoundary:(NSString*)boundary defaultControlName:(NSString*)name arguments:(NSMutableArray*)arguments files:(NSMutableArray*)files;
 - (BOOL)appendBytes:(const void*)bytes length:(NSUInteger)length;
 - (BOOL)isAtEnd;
@@ -51,7 +51,7 @@ static NSData* _newlineData = nil;
 static NSData* _newlinesData = nil;
 static NSData* _dashNewlineData = nil;
 
-@interface GCDWebServerMultiPart () {
+@interface MImportWebServerMultiPart () {
 @private
   NSString* _controlName;
   NSString* _contentType;
@@ -59,7 +59,7 @@ static NSData* _dashNewlineData = nil;
 }
 @end
 
-@implementation GCDWebServerMultiPart
+@implementation MImportWebServerMultiPart
 
 @synthesize controlName=_controlName, contentType=_contentType, mimeType=_mimeType;
 
@@ -67,21 +67,21 @@ static NSData* _dashNewlineData = nil;
   if ((self = [super init])) {
     _controlName = [name copy];
     _contentType = [type copy];
-    _mimeType = GCDWebServerTruncateHeaderValue(_contentType);
+    _mimeType = MImportWebServerTruncateHeaderValue(_contentType);
   }
   return self;
 }
 
 @end
 
-@interface GCDWebServerMultiPartArgument () {
+@interface MImportWebServerMultiPartArgument () {
 @private
   NSData* _data;
   NSString* _string;
 }
 @end
 
-@implementation GCDWebServerMultiPartArgument
+@implementation MImportWebServerMultiPartArgument
 
 @synthesize data=_data, string=_string;
 
@@ -90,8 +90,8 @@ static NSData* _dashNewlineData = nil;
     _data = data;
     
     if ([self.contentType hasPrefix:@"text/"]) {
-      NSString* charset = GCDWebServerExtractHeaderValueParameter(self.contentType, @"charset");
-      _string = [[NSString alloc] initWithData:_data encoding:GCDWebServerStringEncodingFromCharset(charset)];
+      NSString* charset = MImportWebServerExtractHeaderValueParameter(self.contentType, @"charset");
+      _string = [[NSString alloc] initWithData:_data encoding:MImportWebServerStringEncodingFromCharset(charset)];
     }
   }
   return self;
@@ -103,14 +103,14 @@ static NSData* _dashNewlineData = nil;
 
 @end
 
-@interface GCDWebServerMultiPartFile () {
+@interface MImportWebServerMultiPartFile () {
 @private
   NSString* _fileName;
   NSString* _temporaryPath;
 }
 @end
 
-@implementation GCDWebServerMultiPartFile
+@implementation MImportWebServerMultiPartFile
 
 @synthesize fileName=_fileName, temporaryPath=_temporaryPath;
 
@@ -132,7 +132,7 @@ static NSData* _dashNewlineData = nil;
 
 @end
 
-@interface GCDWebServerMIMEStreamParser () {
+@interface MImportWebServerMIMEStreamParser () {
 @private
   NSData* _boundary;
   NSString* _defaultcontrolName;
@@ -146,11 +146,11 @@ static NSData* _dashNewlineData = nil;
   NSString* _contentType;
   NSString* _tmpPath;
   int _tmpFile;
-  GCDWebServerMIMEStreamParser* _subParser;
+  MImportWebServerMIMEStreamParser* _subParser;
 }
 @end
 
-@implementation GCDWebServerMIMEStreamParser
+@implementation MImportWebServerMIMEStreamParser
 
 + (void)initialize {
   if (_newlineData == nil) {
@@ -212,15 +212,15 @@ static NSData* _dashNewlineData = nil;
             NSString* name = [header substringToIndex:subRange.location];
             NSString* value = [[header substringFromIndex:(subRange.location + subRange.length)] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
             if ([name caseInsensitiveCompare:@"Content-Type"] == NSOrderedSame) {
-              _contentType = GCDWebServerNormalizeHeaderValue(value);
+              _contentType = MImportWebServerNormalizeHeaderValue(value);
             } else if ([name caseInsensitiveCompare:@"Content-Disposition"] == NSOrderedSame) {
-              NSString* contentDisposition = GCDWebServerNormalizeHeaderValue(value);
-              if ([GCDWebServerTruncateHeaderValue(contentDisposition) isEqualToString:@"form-data"]) {
-                _controlName = GCDWebServerExtractHeaderValueParameter(contentDisposition, @"name");
-                _fileName = GCDWebServerExtractHeaderValueParameter(contentDisposition, @"filename");
-              } else if ([GCDWebServerTruncateHeaderValue(contentDisposition) isEqualToString:@"file"]) {
+              NSString* contentDisposition = MImportWebServerNormalizeHeaderValue(value);
+              if ([MImportWebServerTruncateHeaderValue(contentDisposition) isEqualToString:@"form-data"]) {
+                _controlName = MImportWebServerExtractHeaderValueParameter(contentDisposition, @"name");
+                _fileName = MImportWebServerExtractHeaderValueParameter(contentDisposition, @"filename");
+              } else if ([MImportWebServerTruncateHeaderValue(contentDisposition) isEqualToString:@"file"]) {
                 _controlName = _defaultcontrolName;
-                _fileName = GCDWebServerExtractHeaderValueParameter(contentDisposition, @"filename");
+                _fileName = MImportWebServerExtractHeaderValueParameter(contentDisposition, @"filename");
               }
             }
           } else {
@@ -235,9 +235,9 @@ static NSData* _dashNewlineData = nil;
         GWS_DNOT_REACHED();
       }
       if (_controlName) {
-        if ([GCDWebServerTruncateHeaderValue(_contentType) isEqualToString:@"multipart/mixed"]) {
-          NSString* boundary = GCDWebServerExtractHeaderValueParameter(_contentType, @"boundary");
-          _subParser = [[GCDWebServerMIMEStreamParser alloc] initWithBoundary:boundary defaultControlName:_controlName arguments:_arguments files:_files];
+        if ([MImportWebServerTruncateHeaderValue(_contentType) isEqualToString:@"multipart/mixed"]) {
+          NSString* boundary = MImportWebServerExtractHeaderValueParameter(_contentType, @"boundary");
+          _subParser = [[MImportWebServerMIMEStreamParser alloc] initWithBoundary:boundary defaultControlName:_controlName arguments:_arguments files:_files];
           if (_subParser == nil) {
             GWS_DNOT_REACHED();
             success = NO;
@@ -284,7 +284,7 @@ static NSData* _dashNewlineData = nil;
             if (result == (ssize_t)dataLength) {
               if (close(_tmpFile) == 0) {
                 _tmpFile = 0;
-                GCDWebServerMultiPartFile* file = [[GCDWebServerMultiPartFile alloc] initWithControlName:_controlName contentType:_contentType fileName:_fileName temporaryPath:_tmpPath];
+                MImportWebServerMultiPartFile* file = [[MImportWebServerMultiPartFile alloc] initWithControlName:_controlName contentType:_contentType fileName:_fileName temporaryPath:_tmpPath];
                 [_files addObject:file];
               } else {
                 GWS_DNOT_REACHED();
@@ -297,7 +297,7 @@ static NSData* _dashNewlineData = nil;
             _tmpPath = nil;
           } else {
             NSData* data = [[NSData alloc] initWithBytes:(void*)dataBytes length:dataLength];
-            GCDWebServerMultiPartArgument* argument = [[GCDWebServerMultiPartArgument alloc] initWithControlName:_controlName contentType:_contentType data:data];
+            MImportWebServerMultiPartArgument* argument = [[MImportWebServerMultiPartArgument alloc] initWithControlName:_controlName contentType:_contentType data:data];
             [_arguments addObject:argument];
           }
         }
@@ -348,15 +348,15 @@ static NSData* _dashNewlineData = nil;
 
 @end
 
-@interface GCDWebServerMultiPartFormRequest () {
+@interface MImportWebServerMultiPartFormRequest () {
 @private
-  GCDWebServerMIMEStreamParser* _parser;
+  MImportWebServerMIMEStreamParser* _parser;
   NSMutableArray* _arguments;
   NSMutableArray* _files;
 }
 @end
 
-@implementation GCDWebServerMultiPartFormRequest
+@implementation MImportWebServerMultiPartFormRequest
 
 @synthesize arguments=_arguments, files=_files;
 
@@ -373,11 +373,11 @@ static NSData* _dashNewlineData = nil;
 }
 
 - (BOOL)open:(NSError**)error {
-  NSString* boundary = GCDWebServerExtractHeaderValueParameter(self.contentType, @"boundary");
-  _parser = [[GCDWebServerMIMEStreamParser alloc] initWithBoundary:boundary defaultControlName:nil arguments:_arguments files:_files];
+  NSString* boundary = MImportWebServerExtractHeaderValueParameter(self.contentType, @"boundary");
+  _parser = [[MImportWebServerMIMEStreamParser alloc] initWithBoundary:boundary defaultControlName:nil arguments:_arguments files:_files];
   if (_parser == nil) {
     if (error) {
-      *error = [NSError errorWithDomain:kGCDWebServerErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Failed starting to parse multipart form data"}];
+      *error = [NSError errorWithDomain:kMImportWebServerErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Failed starting to parse multipart form data"}];
     }
     return NO;
   }
@@ -387,7 +387,7 @@ static NSData* _dashNewlineData = nil;
 - (BOOL)writeData:(NSData*)data error:(NSError**)error {
   if (![_parser appendBytes:data.bytes length:data.length]) {
     if (error) {
-      *error = [NSError errorWithDomain:kGCDWebServerErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Failed continuing to parse multipart form data"}];
+      *error = [NSError errorWithDomain:kMImportWebServerErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Failed continuing to parse multipart form data"}];
     }
     return NO;
   }
@@ -399,15 +399,15 @@ static NSData* _dashNewlineData = nil;
   _parser = nil;
   if (!atEnd) {
     if (error) {
-      *error = [NSError errorWithDomain:kGCDWebServerErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Failed finishing to parse multipart form data"}];
+      *error = [NSError errorWithDomain:kMImportWebServerErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Failed finishing to parse multipart form data"}];
     }
     return NO;
   }
   return YES;
 }
 
-- (GCDWebServerMultiPartArgument*)firstArgumentForControlName:(NSString*)name {
-  for (GCDWebServerMultiPartArgument* argument in _arguments) {
+- (MImportWebServerMultiPartArgument*)firstArgumentForControlName:(NSString*)name {
+  for (MImportWebServerMultiPartArgument* argument in _arguments) {
     if ([argument.controlName isEqualToString:name]) {
       return argument;
     }
@@ -415,8 +415,8 @@ static NSData* _dashNewlineData = nil;
   return nil;
 }
 
-- (GCDWebServerMultiPartFile*)firstFileForControlName:(NSString*)name {
-  for (GCDWebServerMultiPartFile* file in _files) {
+- (MImportWebServerMultiPartFile*)firstFileForControlName:(NSString*)name {
+  for (MImportWebServerMultiPartFile* file in _files) {
     if ([file.controlName isEqualToString:name]) {
       return file;
     }
@@ -428,14 +428,14 @@ static NSData* _dashNewlineData = nil;
   NSMutableString* description = [NSMutableString stringWithString:[super description]];
   if (_arguments.count) {
     [description appendString:@"\n"];
-    for (GCDWebServerMultiPartArgument* argument in _arguments) {
+    for (MImportWebServerMultiPartArgument* argument in _arguments) {
       [description appendFormat:@"\n%@ (%@)\n", argument.controlName, argument.contentType];
-      [description appendString:GCDWebServerDescribeData(argument.data, argument.contentType)];
+      [description appendString:MImportWebServerDescribeData(argument.data, argument.contentType)];
     }
   }
   if (_files.count) {
     [description appendString:@"\n"];
-    for (GCDWebServerMultiPartFile* file in _files) {
+    for (MImportWebServerMultiPartFile* file in _files) {
       [description appendFormat:@"\n%@ (%@): %@\n{%@}", file.controlName, file.contentType, file.fileName, file.temporaryPath];
     }
   }

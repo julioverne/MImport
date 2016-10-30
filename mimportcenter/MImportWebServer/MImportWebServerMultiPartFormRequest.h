@@ -25,13 +25,13 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import "GCDWebServerRequest.h"
+#import "MImportWebServerRequest.h"
 
 /**
- *  The GCDWebServerMultiPart class is an abstract class that wraps the content
+ *  The MImportWebServerMultiPart class is an abstract class that wraps the content
  *  of a part.
  */
-@interface GCDWebServerMultiPart : NSObject
+@interface MImportWebServerMultiPart : NSObject
 
 /**
  *  Returns the control name retrieved from the part headers.
@@ -52,10 +52,10 @@
 @end
 
 /**
- *  The GCDWebServerMultiPartArgument subclass of GCDWebServerMultiPart wraps
+ *  The MImportWebServerMultiPartArgument subclass of MImportWebServerMultiPart wraps
  *  the content of a part as data in memory.
  */
-@interface GCDWebServerMultiPartArgument : GCDWebServerMultiPart
+@interface MImportWebServerMultiPartArgument : MImportWebServerMultiPart
 
 /**
  *  Returns the data for the part.
@@ -74,10 +74,10 @@
 @end
 
 /**
- *  The GCDWebServerMultiPartFile subclass of GCDWebServerMultiPart wraps
+ *  The MImportWebServerMultiPartFile subclass of MImportWebServerMultiPart wraps
  *  the content of a part as a file on disk.
  */
-@interface GCDWebServerMultiPartFile : GCDWebServerMultiPart
+@interface MImportWebServerMultiPartFile : MImportWebServerMultiPart
 
 /**
  *  Returns the file name retrieved from the part headers.
@@ -88,7 +88,7 @@
  *  Returns the path to the temporary file containing the part data.
  *
  *  @warning This temporary file will be automatically deleted when the
- *  GCDWebServerMultiPartFile is deallocated. If you want to preserve this file,
+ *  MImportWebServerMultiPartFile is deallocated. If you want to preserve this file,
  *  you must move it to a different location beforehand.
  */
 @property(nonatomic, readonly) NSString* temporaryPath;
@@ -96,20 +96,20 @@
 @end
 
 /**
- *  The GCDWebServerMultiPartFormRequest subclass of GCDWebServerRequest
+ *  The MImportWebServerMultiPartFormRequest subclass of MImportWebServerRequest
  *  parses the body of the HTTP request as a multipart encoded form.
  */
-@interface GCDWebServerMultiPartFormRequest : GCDWebServerRequest
+@interface MImportWebServerMultiPartFormRequest : MImportWebServerRequest
 
 /**
  *  Returns the argument parts from the multipart encoded form as
- *  name / GCDWebServerMultiPartArgument pairs.
+ *  name / MImportWebServerMultiPartArgument pairs.
  */
 @property(nonatomic, readonly) NSArray* arguments;
 
 /**
  *  Returns the files parts from the multipart encoded form as
- *  name / GCDWebServerMultiPartFile pairs.
+ *  name / MImportWebServerMultiPartFile pairs.
  */
 @property(nonatomic, readonly) NSArray* files;
 
@@ -122,11 +122,11 @@
 /**
  *  Returns the first argument for a given control name or nil if not found.
  */
-- (GCDWebServerMultiPartArgument*)firstArgumentForControlName:(NSString*)name;
+- (MImportWebServerMultiPartArgument*)firstArgumentForControlName:(NSString*)name;
 
 /**
  *  Returns the first file for a given control name or nil if not found.
  */
-- (GCDWebServerMultiPartFile*)firstFileForControlName:(NSString*)name;
+- (MImportWebServerMultiPartFile*)firstFileForControlName:(NSString*)name;
 
 @end

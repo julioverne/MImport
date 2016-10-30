@@ -25,55 +25,21 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
-#endif
+#import "MImportWebServerRequest.h"
 
-#import "GCDWebServerPrivate.h"
+/**
+ *  The MImportWebServerFileRequest subclass of MImportWebServerRequest stores the body
+ *  of the HTTP request to a file on disk.
+ */
+@interface MImportWebServerFileRequest : MImportWebServerRequest
 
-@interface GCDWebServerStreamedResponse () {
-@private
-  GCDWebServerAsyncStreamBlock _block;
-}
-@end
-
-@implementation GCDWebServerStreamedResponse
-
-+ (instancetype)responseWithContentType:(NSString*)type streamBlock:(GCDWebServerStreamBlock)block {
-  return [[[self class] alloc] initWithContentType:type streamBlock:block];
-}
-
-+ (instancetype)responseWithContentType:(NSString*)type asyncStreamBlock:(GCDWebServerAsyncStreamBlock)block {
-  return [[[self class] alloc] initWithContentType:type asyncStreamBlock:block];
-}
-
-- (instancetype)initWithContentType:(NSString*)type streamBlock:(GCDWebServerStreamBlock)block {
-  return [self initWithContentType:type asyncStreamBlock:^(GCDWebServerBodyReaderCompletionBlock completionBlock) {
-    
-    NSError* error = nil;
-    NSData* data = block(&error);
-    completionBlock(data, error);
-    
-  }];
-}
-
-- (instancetype)initWithContentType:(NSString*)type asyncStreamBlock:(GCDWebServerAsyncStreamBlock)block {
-  if ((self = [super init])) {
-    _block = [block copy];
-    
-    self.contentType = type;
-  }
-  return self;
-}
-
-- (void)asyncReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)block {
-  _block(block);
-}
-
-- (NSString*)description {
-  NSMutableString* description = [NSMutableString stringWithString:[super description]];
-  [description appendString:@"\n\n<STREAM>"];
-  return description;
-}
+/**
+ *  Returns the path to the temporary file containing the request body.
+ *
+ *  @warning This temporary file will be automatically deleted when the
+ *  MImportWebServerFileRequest is deallocated. If you want to preserve this file,
+ *  you must move it to a different location beforehand.
+ */
+@property(nonatomic, readonly) NSString* temporaryPath;
 
 @end

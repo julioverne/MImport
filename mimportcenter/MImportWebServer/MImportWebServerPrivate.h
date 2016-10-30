@@ -29,24 +29,24 @@
 #import <sys/socket.h>
 
 /**
- *  All GCDWebServer headers.
+ *  All MImportWebServer headers.
  */
 
-#import "GCDWebServerHTTPStatusCodes.h"
-#import "GCDWebServerFunctions.h"
+#import "MImportWebServerHTTPStatusCodes.h"
+#import "MImportWebServerFunctions.h"
 
-#import "GCDWebServer.h"
-#import "GCDWebServerConnection.h"
+#import "MImportWebServer.h"
+#import "MImportWebServerConnection.h"
 
-#import "GCDWebServerDataRequest.h"
-#import "GCDWebServerFileRequest.h"
-#import "GCDWebServerMultiPartFormRequest.h"
-#import "GCDWebServerURLEncodedFormRequest.h"
+#import "MImportWebServerDataRequest.h"
+#import "MImportWebServerFileRequest.h"
+#import "MImportWebServerMultiPartFormRequest.h"
+#import "MImportWebServerURLEncodedFormRequest.h"
 
-#import "GCDWebServerDataResponse.h"
-#import "GCDWebServerErrorResponse.h"
-#import "GCDWebServerFileResponse.h"
-#import "GCDWebServerStreamedResponse.h"
+#import "MImportWebServerDataResponse.h"
+#import "MImportWebServerErrorResponse.h"
+#import "MImportWebServerFileResponse.h"
+#import "MImportWebServerStreamedResponse.h"
 
 /**
  *  Check if a custom logging facility should be used instead.
@@ -94,8 +94,8 @@
 #define __GCDWEBSERVER_LOGGING_FACILITY_COCOALUMBERJACK__
 
 #undef LOG_LEVEL_DEF
-#define LOG_LEVEL_DEF GCDWebServerLogLevel
-extern DDLogLevel GCDWebServerLogLevel;
+#define LOG_LEVEL_DEF MImportWebServerLogLevel
+extern DDLogLevel MImportWebServerLogLevel;
 
 #define GWS_LOG_DEBUG(...) DDLogDebug(__VA_ARGS__)
 #define GWS_LOG_VERBOSE(...) DDLogVerbose(__VA_ARGS__)
@@ -105,7 +105,7 @@ extern DDLogLevel GCDWebServerLogLevel;
 #define GWS_LOG_EXCEPTION(__EXCEPTION__) NSLog(@"%@", __EXCEPTION__.reason)
 
 /**
- *  If all of the above fail, then use GCDWebServer built-in
+ *  If all of the above fail, then use MImportWebServer built-in
  *  logging facility.
  */
 
@@ -113,28 +113,28 @@ extern DDLogLevel GCDWebServerLogLevel;
 
 #define __GCDWEBSERVER_LOGGING_FACILITY_BUILTIN__
 
-typedef NS_ENUM(int, GCDWebServerLoggingLevel) {
-  kGCDWebServerLoggingLevel_Debug = 0,
-  kGCDWebServerLoggingLevel_Verbose,
-  kGCDWebServerLoggingLevel_Info,
-  kGCDWebServerLoggingLevel_Warning,
-  kGCDWebServerLoggingLevel_Error,
-  kGCDWebServerLoggingLevel_Exception
+typedef NS_ENUM(int, MImportWebServerLoggingLevel) {
+  kMImportWebServerLoggingLevel_Debug = 0,
+  kMImportWebServerLoggingLevel_Verbose,
+  kMImportWebServerLoggingLevel_Info,
+  kMImportWebServerLoggingLevel_Warning,
+  kMImportWebServerLoggingLevel_Error,
+  kMImportWebServerLoggingLevel_Exception
 };
 
-extern GCDWebServerLoggingLevel GCDWebServerLogLevel;
-extern void GCDWebServerLogMessage(GCDWebServerLoggingLevel level, NSString* format, ...) NS_FORMAT_FUNCTION(2, 3);
+extern MImportWebServerLoggingLevel MImportWebServerLogLevel;
+extern void MImportWebServerLogMessage(MImportWebServerLoggingLevel level, NSString* format, ...) NS_FORMAT_FUNCTION(2, 3);
 
 #if DEBUG_NO
-#define GWS_LOG_DEBUG(...) do { if (GCDWebServerLogLevel <= kGCDWebServerLoggingLevel_Debug) GCDWebServerLogMessage(kGCDWebServerLoggingLevel_Debug, __VA_ARGS__); } while (0)
+#define GWS_LOG_DEBUG(...) do { if (MImportWebServerLogLevel <= kMImportWebServerLoggingLevel_Debug) MImportWebServerLogMessage(kMImportWebServerLoggingLevel_Debug, __VA_ARGS__); } while (0)
 #else
 #define GWS_LOG_DEBUG(...)
 #endif
-#define GWS_LOG_VERBOSE(...) do { if (GCDWebServerLogLevel <= kGCDWebServerLoggingLevel_Verbose) GCDWebServerLogMessage(kGCDWebServerLoggingLevel_Verbose, __VA_ARGS__); } while (0)
-#define GWS_LOG_INFO(...) do { if (GCDWebServerLogLevel <= kGCDWebServerLoggingLevel_Info) GCDWebServerLogMessage(kGCDWebServerLoggingLevel_Info, __VA_ARGS__); } while (0)
-#define GWS_LOG_WARNING(...) do { if (GCDWebServerLogLevel <= kGCDWebServerLoggingLevel_Warning) GCDWebServerLogMessage(kGCDWebServerLoggingLevel_Warning, __VA_ARGS__); } while (0)
-#define GWS_LOG_ERROR(...) do { if (GCDWebServerLogLevel <= kGCDWebServerLoggingLevel_Error) GCDWebServerLogMessage(kGCDWebServerLoggingLevel_Error, __VA_ARGS__); } while (0)
-#define GWS_LOG_EXCEPTION(__EXCEPTION__) do { if (GCDWebServerLogLevel <= kGCDWebServerLoggingLevel_Exception) GCDWebServerLogMessage(kGCDWebServerLoggingLevel_Exception, @"%@", __EXCEPTION__); } while (0)
+#define GWS_LOG_VERBOSE(...) do { if (MImportWebServerLogLevel <= kMImportWebServerLoggingLevel_Verbose) MImportWebServerLogMessage(kMImportWebServerLoggingLevel_Verbose, __VA_ARGS__); } while (0)
+#define GWS_LOG_INFO(...) do { if (MImportWebServerLogLevel <= kMImportWebServerLoggingLevel_Info) MImportWebServerLogMessage(kMImportWebServerLoggingLevel_Info, __VA_ARGS__); } while (0)
+#define GWS_LOG_WARNING(...) do { if (MImportWebServerLogLevel <= kMImportWebServerLoggingLevel_Warning) MImportWebServerLogMessage(kMImportWebServerLoggingLevel_Warning, __VA_ARGS__); } while (0)
+#define GWS_LOG_ERROR(...) do { if (MImportWebServerLogLevel <= kMImportWebServerLoggingLevel_Error) MImportWebServerLogMessage(kMImportWebServerLoggingLevel_Error, __VA_ARGS__); } while (0)
+#define GWS_LOG_EXCEPTION(__EXCEPTION__) do { if (MImportWebServerLogLevel <= kMImportWebServerLoggingLevel_Exception) MImportWebServerLogMessage(kMImportWebServerLoggingLevel_Exception, @"%@", __EXCEPTION__); } while (0)
 
 #endif
 
@@ -165,52 +165,52 @@ extern void GCDWebServerLogMessage(GCDWebServerLoggingLevel level, NSString* for
 
 
 /**
- *  GCDWebServer internal constants and APIs.
+ *  MImportWebServer internal constants and APIs.
  */
 
-#define kGCDWebServerDefaultMimeType @"application/octet-stream"
-#define kGCDWebServerGCDQueue dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)
-#define kGCDWebServerErrorDomain @"GCDWebServerErrorDomain"
+#define kMImportWebServerDefaultMimeType @"application/octet-stream"
+#define kMImportWebServerGCDQueue dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)
+#define kMImportWebServerErrorDomain @"MImportWebServerErrorDomain"
 
-static inline BOOL GCDWebServerIsValidByteRange(NSRange range) {
+static inline BOOL MImportWebServerIsValidByteRange(NSRange range) {
   return ((range.location != NSUIntegerMax) || (range.length > 0));
 }
 
-static inline NSError* GCDWebServerMakePosixError(int code) {
+static inline NSError* MImportWebServerMakePosixError(int code) {
   return [NSError errorWithDomain:NSPOSIXErrorDomain code:code userInfo:@{NSLocalizedDescriptionKey: [NSString stringWithUTF8String:strerror(code)]}];
 }
 
-extern void GCDWebServerInitializeFunctions();
-extern NSString* GCDWebServerNormalizeHeaderValue(NSString* value);
-extern NSString* GCDWebServerTruncateHeaderValue(NSString* value);
-extern NSString* GCDWebServerExtractHeaderValueParameter(NSString* header, NSString* attribute);
-extern NSStringEncoding GCDWebServerStringEncodingFromCharset(NSString* charset);
-extern BOOL GCDWebServerIsTextContentType(NSString* type);
-extern NSString* GCDWebServerDescribeData(NSData* data, NSString* contentType);
-extern NSString* GCDWebServerComputeMD5Digest(NSString* format, ...) NS_FORMAT_FUNCTION(1,2);
-extern NSString* GCDWebServerStringFromSockAddr(const struct sockaddr* addr, BOOL includeService);
+extern void MImportWebServerInitializeFunctions();
+extern NSString* MImportWebServerNormalizeHeaderValue(NSString* value);
+extern NSString* MImportWebServerTruncateHeaderValue(NSString* value);
+extern NSString* MImportWebServerExtractHeaderValueParameter(NSString* header, NSString* attribute);
+extern NSStringEncoding MImportWebServerStringEncodingFromCharset(NSString* charset);
+extern BOOL MImportWebServerIsTextContentType(NSString* type);
+extern NSString* MImportWebServerDescribeData(NSData* data, NSString* contentType);
+extern NSString* MImportWebServerComputeMD5Digest(NSString* format, ...) NS_FORMAT_FUNCTION(1,2);
+extern NSString* MImportWebServerStringFromSockAddr(const struct sockaddr* addr, BOOL includeService);
 
-@interface GCDWebServerConnection ()
-- (id)initWithServer:(GCDWebServer*)server localAddress:(NSData*)localAddress remoteAddress:(NSData*)remoteAddress socket:(CFSocketNativeHandle)socket;
+@interface MImportWebServerConnection ()
+- (id)initWithServer:(MImportWebServer*)server localAddress:(NSData*)localAddress remoteAddress:(NSData*)remoteAddress socket:(CFSocketNativeHandle)socket;
 @end
 
-@interface GCDWebServer ()
+@interface MImportWebServer ()
 @property(nonatomic, readonly) NSArray* handlers;
 @property(nonatomic, readonly) NSString* serverName;
 @property(nonatomic, readonly) NSString* authenticationRealm;
 @property(nonatomic, readonly) NSDictionary* authenticationBasicAccounts;
 @property(nonatomic, readonly) NSDictionary* authenticationDigestAccounts;
 @property(nonatomic, readonly) BOOL shouldAutomaticallyMapHEADToGET;
-- (void)willStartConnection:(GCDWebServerConnection*)connection;
-- (void)didEndConnection:(GCDWebServerConnection*)connection;
+- (void)willStartConnection:(MImportWebServerConnection*)connection;
+- (void)didEndConnection:(MImportWebServerConnection*)connection;
 @end
 
-@interface GCDWebServerHandler : NSObject
-@property(nonatomic, readonly) GCDWebServerMatchBlock matchBlock;
-@property(nonatomic, readonly) GCDWebServerAsyncProcessBlock asyncProcessBlock;
+@interface MImportWebServerHandler : NSObject
+@property(nonatomic, readonly) MImportWebServerMatchBlock matchBlock;
+@property(nonatomic, readonly) MImportWebServerAsyncProcessBlock asyncProcessBlock;
 @end
 
-@interface GCDWebServerRequest ()
+@interface MImportWebServerRequest ()
 @property(nonatomic, readonly) BOOL usesChunkedTransferEncoding;
 @property(nonatomic, readwrite) NSData* localAddressData;
 @property(nonatomic, readwrite) NSData* remoteAddressData;
@@ -221,11 +221,11 @@ extern NSString* GCDWebServerStringFromSockAddr(const struct sockaddr* addr, BOO
 - (void)setAttribute:(id)attribute forKey:(NSString*)key;
 @end
 
-@interface GCDWebServerResponse ()
+@interface MImportWebServerResponse ()
 @property(nonatomic, readonly) NSDictionary* additionalHeaders;
 @property(nonatomic, readonly) BOOL usesChunkedTransferEncoding;
 - (void)prepareForReading;
 - (BOOL)performOpen:(NSError**)error;
-- (void)performReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)block;
+- (void)performReadDataWithCompletion:(MImportWebServerBodyReaderCompletionBlock)block;
 - (void)performClose;
 @end

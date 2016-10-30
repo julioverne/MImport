@@ -25,17 +25,17 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import "GCDWebServerResponse.h"
+#import "MImportWebServerResponse.h"
 
 /**
- *  The GCDWebServerStreamBlock is called to stream the data for the HTTP body.
+ *  The MImportWebServerStreamBlock is called to stream the data for the HTTP body.
  *  The block must return either a chunk of data, an empty NSData when done, or
  *  nil on error and set the "error" argument which is guaranteed to be non-NULL.
  */
-typedef NSData* (^GCDWebServerStreamBlock)(NSError** error);
+typedef NSData* (^MImportWebServerStreamBlock)(NSError** error);
 
 /**
- *  The GCDWebServerAsyncStreamBlock works like the GCDWebServerStreamBlock
+ *  The MImportWebServerAsyncStreamBlock works like the MImportWebServerStreamBlock
  *  except the streamed data can be returned at a later time allowing for
  *  truly asynchronous generation of the data.
  *
@@ -44,32 +44,32 @@ typedef NSData* (^GCDWebServerStreamBlock)(NSError** error);
  *
  *  The block cannot call "completionBlock" more than once per invocation.
  */
-typedef void (^GCDWebServerAsyncStreamBlock)(GCDWebServerBodyReaderCompletionBlock completionBlock);
+typedef void (^MImportWebServerAsyncStreamBlock)(MImportWebServerBodyReaderCompletionBlock completionBlock);
 
 /**
- *  The GCDWebServerStreamedResponse subclass of GCDWebServerResponse streams
+ *  The MImportWebServerStreamedResponse subclass of MImportWebServerResponse streams
  *  the body of the HTTP response using a GCD block.
  */
-@interface GCDWebServerStreamedResponse : GCDWebServerResponse
+@interface MImportWebServerStreamedResponse : MImportWebServerResponse
 
 /**
  *  Creates a response with streamed data and a given content type.
  */
-+ (instancetype)responseWithContentType:(NSString*)type streamBlock:(GCDWebServerStreamBlock)block;
++ (instancetype)responseWithContentType:(NSString*)type streamBlock:(MImportWebServerStreamBlock)block;
 
 /**
  *  Creates a response with async streamed data and a given content type.
  */
-+ (instancetype)responseWithContentType:(NSString*)type asyncStreamBlock:(GCDWebServerAsyncStreamBlock)block;
++ (instancetype)responseWithContentType:(NSString*)type asyncStreamBlock:(MImportWebServerAsyncStreamBlock)block;
 
 /**
  *  Initializes a response with streamed data and a given content type.
  */
-- (instancetype)initWithContentType:(NSString*)type streamBlock:(GCDWebServerStreamBlock)block;
+- (instancetype)initWithContentType:(NSString*)type streamBlock:(MImportWebServerStreamBlock)block;
 
 /**
  *  This method is the designated initializer for the class.
  */
-- (instancetype)initWithContentType:(NSString*)type asyncStreamBlock:(GCDWebServerAsyncStreamBlock)block;
+- (instancetype)initWithContentType:(NSString*)type asyncStreamBlock:(MImportWebServerAsyncStreamBlock)block;
 
 @end

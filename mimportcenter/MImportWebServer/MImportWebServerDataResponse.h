@@ -25,13 +25,13 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import "GCDWebServerResponse.h"
+#import "MImportWebServerResponse.h"
 
 /**
- *  The GCDWebServerDataResponse subclass of GCDWebServerResponse reads the body
+ *  The MImportWebServerDataResponse subclass of MImportWebServerResponse reads the body
  *  of the HTTP response from memory.
  */
-@interface GCDWebServerDataResponse : GCDWebServerResponse
+@interface MImportWebServerDataResponse : MImportWebServerResponse
 
 /**
  *  Creates a response with data in memory and a given content type.
@@ -45,7 +45,7 @@
 
 @end
 
-@interface GCDWebServerDataResponse (Extensions)
+@interface MImportWebServerDataResponse (Extensions)
 
 /**
  *  Creates a data response from text encoded using UTF-8.

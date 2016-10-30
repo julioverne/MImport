@@ -26,12 +26,12 @@
  */
 
 #if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
+#error MImportWebServer requires ARC
 #endif
 
-#import "GCDWebServerPrivate.h"
+#import "MImportWebServerPrivate.h"
 
-@interface GCDWebServerDataRequest () {
+@interface MImportWebServerDataRequest () {
 @private
   NSMutableData* _data;
   
@@ -40,7 +40,7 @@
 }
 @end
 
-@implementation GCDWebServerDataRequest
+@implementation MImportWebServerDataRequest
 
 @synthesize data=_data;
 
@@ -52,7 +52,7 @@
   }
   if (_data == nil) {
     if (error) {
-      *error = [NSError errorWithDomain:kGCDWebServerErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Failed allocating memory"}];
+      *error = [NSError errorWithDomain:kMImportWebServerErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: @"Failed allocating memory"}];
     }
     return NO;
   }
@@ -72,20 +72,20 @@
   NSMutableString* description = [NSMutableString stringWithString:[super description]];
   if (_data) {
     [description appendString:@"\n\n"];
-    [description appendString:GCDWebServerDescribeData(_data, self.contentType)];
+    [description appendString:MImportWebServerDescribeData(_data, self.contentType)];
   }
   return description;
 }
 
 @end
 
-@implementation GCDWebServerDataRequest (Extensions)
+@implementation MImportWebServerDataRequest (Extensions)
 
 - (NSString*)text {
   if (_text == nil) {
     if ([self.contentType hasPrefix:@"text/"]) {
-      NSString* charset = GCDWebServerExtractHeaderValueParameter(self.contentType, @"charset");
-      _text = [[NSString alloc] initWithData:self.data encoding:GCDWebServerStringEncodingFromCharset(charset)];
+      NSString* charset = MImportWebServerExtractHeaderValueParameter(self.contentType, @"charset");
+      _text = [[NSString alloc] initWithData:self.data encoding:MImportWebServerStringEncodingFromCharset(charset)];
     } else {
       GWS_DNOT_REACHED();
     }
@@ -95,7 +95,7 @@
 
 - (id)jsonObject {
   if (_jsonObject == nil) {
-    NSString* mimeType = GCDWebServerTruncateHeaderValue(self.contentType);
+    NSString* mimeType = MImportWebServerTruncateHeaderValue(self.contentType);
     if ([mimeType isEqualToString:@"application/json"] || [mimeType isEqualToString:@"text/json"] || [mimeType isEqualToString:@"text/javascript"]) {
       _jsonObject = [NSJSONSerialization JSONObjectWithData:_data options:0 error:NULL];
     } else {

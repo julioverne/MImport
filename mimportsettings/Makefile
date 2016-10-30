@@ -14,8 +14,8 @@ include $(THEOS_MAKE_PATH)/bundle.mk
 
 all::
 	@echo "[+] Copying Files..."
-	@ldid -S ./obj/MImport.bundle/MImport
 	@cp ./obj/MImport.bundle/MImport //Library/PreferenceBundles/MImport.bundle/MImport
+	@/usr/bin/ldid -S //Library/PreferenceBundles/MImport.bundle/MImport
 	@echo "DONE"
 	
 	

@@ -44,6 +44,17 @@
         spec->action = @selector(reset);
         [specifiers addObject:spec];*/
 		
+		spec = [PSSpecifier preferenceSpecifierNamed:@"TIPS:"
+		                                      target:self
+											  set:Nil
+											  get:Nil
+                                              detail:Nil
+											  cell:PSGroupCell
+											  edit:Nil];
+		[spec setProperty:@"TIPS:" forKey:@"label"];
+		[spec setProperty:@"* You can Import Music/Video on Any App via Share/Open In App diretly to the Music App.\n\n* Tap&Hold any Folder to set as Favorite for quick access.\n\n* When you edit tags you can tap in \"Fetch Tags Online Now\" this allow to get Artwork, Artist, Album online.. if it fail you can change tag \"Title\" and Tap Fetch again for an search more efficient." forKey:@"footerText"];
+        [specifiers addObject:spec];
+		
 		spec = [PSSpecifier preferenceSpecifierNamed:@"Developer"
 		                                      target:self
 											  set:Nil

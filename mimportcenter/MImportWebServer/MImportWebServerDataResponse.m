@@ -26,19 +26,19 @@
  */
 
 #if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
+#error MImportWebServer requires ARC
 #endif
 
-#import "GCDWebServerPrivate.h"
+#import "MImportWebServerPrivate.h"
 
-@interface GCDWebServerDataResponse () {
+@interface MImportWebServerDataResponse () {
 @private
   NSData* _data;
   BOOL _done;
 }
 @end
 
-@implementation GCDWebServerDataResponse
+@implementation MImportWebServerDataResponse
 
 + (instancetype)responseWithData:(NSData*)data contentType:(NSString*)type {
   return [[[self class] alloc] initWithData:data contentType:type];
@@ -73,13 +73,13 @@
 - (NSString*)description {
   NSMutableString* description = [NSMutableString stringWithString:[super description]];
   [description appendString:@"\n\n"];
-  [description appendString:GCDWebServerDescribeData(_data, self.contentType)];
+  [description appendString:MImportWebServerDescribeData(_data, self.contentType)];
   return description;
 }
 
 @end
 
-@implementation GCDWebServerDataResponse (Extensions)
+@implementation MImportWebServerDataResponse (Extensions)
 
 + (instancetype)responseWithText:(NSString*)text {
   return [[self alloc] initWithText:text];

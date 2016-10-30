@@ -25,14 +25,14 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import "GCDWebServerDataRequest.h"
+#import "MImportWebServerDataRequest.h"
 
 /**
- *  The GCDWebServerURLEncodedFormRequest subclass of GCDWebServerRequest
+ *  The MImportWebServerURLEncodedFormRequest subclass of MImportWebServerRequest
  *  parses the body of the HTTP request as a URL encoded form using
- *  GCDWebServerParseURLEncodedForm().
+ *  MImportWebServerParseURLEncodedForm().
  */
-@interface GCDWebServerURLEncodedFormRequest : GCDWebServerDataRequest
+@interface MImportWebServerURLEncodedFormRequest : MImportWebServerDataRequest
 
 /**
  *  Returns the unescaped control names and values for the URL encoded form.

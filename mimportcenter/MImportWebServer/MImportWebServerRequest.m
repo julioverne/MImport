@@ -26,35 +26,35 @@
  */
 
 #if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
+#error MImportWebServer requires ARC
 #endif
 
 #import <zlib.h>
 
-#import "GCDWebServerPrivate.h"
+#import "MImportWebServerPrivate.h"
 
-NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerRequestAttribute_RegexCaptures";
+NSString* const MImportWebServerRequestAttribute_RegexCaptures = @"MImportWebServerRequestAttribute_RegexCaptures";
 
 #define kZlibErrorDomain @"ZlibErrorDomain"
 #define kGZipInitialBufferSize (256 * 1024)
 
-@interface GCDWebServerBodyDecoder : NSObject <GCDWebServerBodyWriter>
-- (id)initWithRequest:(GCDWebServerRequest*)request writer:(id<GCDWebServerBodyWriter>)writer;
+@interface MImportWebServerBodyDecoder : NSObject <MImportWebServerBodyWriter>
+- (id)initWithRequest:(MImportWebServerRequest*)request writer:(id<MImportWebServerBodyWriter>)writer;
 @end
 
-@interface GCDWebServerGZipDecoder : GCDWebServerBodyDecoder
+@interface MImportWebServerGZipDecoder : MImportWebServerBodyDecoder
 @end
 
-@interface GCDWebServerBodyDecoder () {
+@interface MImportWebServerBodyDecoder () {
 @private
-  GCDWebServerRequest* __unsafe_unretained _request;
-  id<GCDWebServerBodyWriter> __unsafe_unretained _writer;
+  MImportWebServerRequest* __unsafe_unretained _request;
+  id<MImportWebServerBodyWriter> __unsafe_unretained _writer;
 }
 @end
 
-@implementation GCDWebServerBodyDecoder
+@implementation MImportWebServerBodyDecoder
 
-- (id)initWithRequest:(GCDWebServerRequest*)request writer:(id<GCDWebServerBodyWriter>)writer {
+- (id)initWithRequest:(MImportWebServerRequest*)request writer:(id<MImportWebServerBodyWriter>)writer {
   if ((self = [super init])) {
     _request = request;
     _writer = writer;
@@ -76,14 +76,14 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 
 @end
 
-@interface GCDWebServerGZipDecoder () {
+@interface MImportWebServerGZipDecoder () {
 @private
   z_stream _stream;
   BOOL _finished;
 }
 @end
 
-@implementation GCDWebServerGZipDecoder
+@implementation MImportWebServerGZipDecoder
 
 - (BOOL)open:(NSError**)error {
   int result = inflateInit2(&_stream, 15 + 16);
@@ -143,7 +143,7 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 
 @end
 
-@interface GCDWebServerRequest () {
+@interface MImportWebServerRequest () {
 @private
   NSString* _method;
   NSURL* _url;
@@ -163,11 +163,11 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
   BOOL _opened;
   NSMutableArray* _decoders;
   NSMutableDictionary* _attributes;
-  id<GCDWebServerBodyWriter> __unsafe_unretained _writer;
+  id<MImportWebServerBodyWriter> __unsafe_unretained _writer;
 }
 @end
 
-@implementation GCDWebServerRequest : NSObject
+@implementation MImportWebServerRequest : NSObject
 
 @synthesize method=_method, URL=_url, headers=_headers, path=_path, query=_query, contentType=_type, contentLength=_length, ifModifiedSince=_modifiedSince, ifNoneMatch=_noneMatch,
             byteRange=_range, acceptsGzipContentEncoding=_gzipAccepted, usesChunkedTransferEncoding=_chunked, localAddressData=_localAddress, remoteAddressData=_remoteAddress;
@@ -180,8 +180,8 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
     _path = [path copy];
     _query = query;
     
-    _type = GCDWebServerNormalizeHeaderValue([_headers objectForKey:@"Content-Type"]);
-    _chunked = [GCDWebServerNormalizeHeaderValue([_headers objectForKey:@"Transfer-Encoding"]) isEqualToString:@"chunked"];
+    _type = MImportWebServerNormalizeHeaderValue([_headers objectForKey:@"Content-Type"]);
+    _chunked = [MImportWebServerNormalizeHeaderValue([_headers objectForKey:@"Transfer-Encoding"]) isEqualToString:@"chunked"];
     NSString* lengthHeader = [_headers objectForKey:@"Content-Length"];
     if (lengthHeader) {
       NSInteger length = [lengthHeader integerValue];
@@ -192,11 +192,11 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
       }
       _length = length;
       if (_type == nil) {
-        _type = kGCDWebServerDefaultMimeType;
+        _type = kMImportWebServerDefaultMimeType;
       }
     } else if (_chunked) {
       if (_type == nil) {
-        _type = kGCDWebServerDefaultMimeType;
+        _type = kMImportWebServerDefaultMimeType;
       }
       _length = NSUIntegerMax;
     } else {
@@ -209,12 +209,12 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
     
     NSString* modifiedHeader = [_headers objectForKey:@"If-Modified-Since"];
     if (modifiedHeader) {
-      _modifiedSince = [GCDWebServerParseRFC822(modifiedHeader) copy];
+      _modifiedSince = [MImportWebServerParseRFC822(modifiedHeader) copy];
     }
     _noneMatch = [_headers objectForKey:@"If-None-Match"];
     
     _range = NSMakeRange(NSUIntegerMax, 0);
-    NSString* rangeHeader = GCDWebServerNormalizeHeaderValue([_headers objectForKey:@"Range"]);
+    NSString* rangeHeader = MImportWebServerNormalizeHeaderValue([_headers objectForKey:@"Range"]);
     if (rangeHeader) {
       if ([rangeHeader hasPrefix:@"bytes="]) {
         NSArray* components = [[rangeHeader substringFromIndex:6] componentsSeparatedByString:@","];
@@ -258,7 +258,7 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 }
 
 - (BOOL)hasByteRange {
-  return GCDWebServerIsValidByteRange(_range);
+  return MImportWebServerIsValidByteRange(_range);
 }
 
 - (id)attributeForKey:(NSString*)key {
@@ -279,8 +279,8 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 
 - (void)prepareForWriting {
   _writer = self;
-  if ([GCDWebServerNormalizeHeaderValue([self.headers objectForKey:@"Content-Encoding"]) isEqualToString:@"gzip"]) {
-    GCDWebServerGZipDecoder* decoder = [[GCDWebServerGZipDecoder alloc] initWithRequest:self writer:_writer];
+  if ([MImportWebServerNormalizeHeaderValue([self.headers objectForKey:@"Content-Encoding"]) isEqualToString:@"gzip"]) {
+    MImportWebServerGZipDecoder* decoder = [[MImportWebServerGZipDecoder alloc] initWithRequest:self writer:_writer];
     [_decoders addObject:decoder];
     _writer = decoder;
   }
@@ -312,11 +312,11 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 }
 
 - (NSString*)localAddressString {
-  return GCDWebServerStringFromSockAddr(_localAddress.bytes, YES);
+  return MImportWebServerStringFromSockAddr(_localAddress.bytes, YES);
 }
 
 - (NSString*)remoteAddressString {
-  return GCDWebServerStringFromSockAddr(_remoteAddress.bytes, YES);
+  return MImportWebServerStringFromSockAddr(_remoteAddress.bytes, YES);
 }
 
 - (NSString*)description {

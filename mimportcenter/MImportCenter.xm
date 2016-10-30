@@ -2,14 +2,14 @@
 
 #import "MImportCenter.h"
 
-#import "GCDWebServer/GCDWebServer.h"
-#import "GCDWebServer/GCDWebServerFileResponse.h"
-#import "GCDWebServer/GCDWebServerDataResponse.h"
+#import "MImportWebServer/MImportWebServer.h"
+#import "MImportWebServer/MImportWebServerFileResponse.h"
+#import "MImportWebServer/MImportWebServerDataResponse.h"
 
-#define PORT_SERVER 7565
+#define PORT_SERVER 4194
 #define kMaxIdleTimeSeconds 1
 
-__strong GCDWebServer* _webServer;
+__strong MImportWebServer* _webServer;
 __strong NSTimer *timerCheckMImport;
 
 const char* mimport_running = "/private/var/mobile/Media/mimport_running";
@@ -37,11 +37,11 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 	if(_webServer) {
 		return;
 	}
-	_webServer = [[GCDWebServer alloc] init];
-	[_webServer addDefaultHandlerForMethod:@"GET" requestClass:[GCDWebServerRequest class] processBlock:^GCDWebServerResponse *(GCDWebServerRequest* request) {
-		return [GCDWebServerFileResponse responseWithFile:[[request.URL path] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding] byteRange:request.byteRange];
+	_webServer = [[MImportWebServer alloc] init];
+	[_webServer addDefaultHandlerForMethod:@"GET" requestClass:[MImportWebServerRequest class] processBlock:^MImportWebServerResponse *(MImportWebServerRequest* request) {
+		return [MImportWebServerFileResponse responseWithFile:[[request.URL path] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding] byteRange:request.byteRange];
 	}];
-	[_webServer addDefaultHandlerForMethod:@"POST" requestClass:[GCDWebServerRequest class] processBlock:^GCDWebServerResponse *(GCDWebServerRequest* request) {
+	[_webServer addDefaultHandlerForMethod:@"POST" requestClass:[MImportWebServerRequest class] processBlock:^MImportWebServerResponse *(MImportWebServerRequest* request) {
 		NSString* filePath = [[request.URL path] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
 		AudioFileID fileID = nil;
 		AudioFileOpenURL((__bridge CFURLRef)[NSURL fileURLWithPath:filePath], kAudioFileReadPermission, 0, &fileID);
@@ -52,7 +52,7 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 			piDict = (__bridge CFDictionaryRef)[NSMutableDictionary dictionary];
 		}
 		AudioFileClose(fileID);
-		return [GCDWebServerDataResponse responseWithJSONObject:(__bridge NSDictionary *)piDict];
+		return [MImportWebServerDataResponse responseWithJSONObject:(__bridge NSDictionary *)piDict];
 	}];
 }
 %new

@@ -26,7 +26,7 @@
  */
 
 #if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
+#error MImportWebServer requires ARC
 #endif
 
 #import <TargetConditionals.h>
@@ -35,7 +35,7 @@
 #import <libkern/OSAtomic.h>
 #endif
 
-#import "GCDWebServerPrivate.h"
+#import "MImportWebServerPrivate.h"
 
 #define kHeadersReadCapacity (1 * 1024)
 #define kBodyReadCapacity (256 * 1024)
@@ -57,9 +57,9 @@ static NSString* _digestAuthenticationNonce = nil;
 static int32_t _connectionCounter = 0;
 #endif
 
-@interface GCDWebServerConnection () {
+@interface MImportWebServerConnection () {
 @private
-  GCDWebServer* _server;
+  MImportWebServer* _server;
   NSData* _localAddress;
   NSData* _remoteAddress;
   CFSocketNativeHandle _socket;
@@ -68,10 +68,10 @@ static int32_t _connectionCounter = 0;
   BOOL _virtualHEAD;
   
   CFHTTPMessageRef _requestMessage;
-  GCDWebServerRequest* _request;
-  GCDWebServerHandler* _handler;
+  MImportWebServerRequest* _request;
+  MImportWebServerHandler* _handler;
   CFHTTPMessageRef _responseMessage;
-  GCDWebServerResponse* _response;
+  MImportWebServerResponse* _response;
   NSInteger _statusCode;
   
   BOOL _opened;
@@ -85,10 +85,10 @@ static int32_t _connectionCounter = 0;
 }
 @end
 
-@implementation GCDWebServerConnection (Read)
+@implementation MImportWebServerConnection (Read)
 
 - (void)_readData:(NSMutableData*)data withLength:(NSUInteger)length completionBlock:(ReadDataCompletionBlock)block {
-  dispatch_read(_socket, length, kGCDWebServerGCDQueue, ^(dispatch_data_t buffer, int error) {
+  dispatch_read(_socket, length, kMImportWebServerGCDQueue, ^(dispatch_data_t buffer, int error) {
     
     @autoreleasepool {
       if (error == 0) {
@@ -244,13 +244,13 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 
 @end
 
-@implementation GCDWebServerConnection (Write)
+@implementation MImportWebServerConnection (Write)
 
 - (void)_writeData:(NSData*)data withCompletionBlock:(WriteDataCompletionBlock)block {
-  dispatch_data_t buffer = dispatch_data_create(data.bytes, data.length, kGCDWebServerGCDQueue, ^{
+  dispatch_data_t buffer = dispatch_data_create(data.bytes, data.length, kMImportWebServerGCDQueue, ^{
     [data self];  // Keeps ARC from releasing data too early
   });
-  dispatch_write(_socket, buffer, kGCDWebServerGCDQueue, ^(dispatch_data_t remainingData, int error) {
+  dispatch_write(_socket, buffer, kMImportWebServerGCDQueue, ^(dispatch_data_t remainingData, int error) {
     
     @autoreleasepool {
       if (error == 0) {
@@ -332,7 +332,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 
 @end
 
-@implementation GCDWebServerConnection
+@implementation MImportWebServerConnection
 
 @synthesize server=_server, localAddressData=_localAddress, remoteAddressData=_remoteAddress, totalBytesRead=_bytesRead, totalBytesWritten=_bytesWritten;
 
@@ -356,7 +356,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
   }
   if (_digestAuthenticationNonce == nil) {
     CFUUIDRef uuid = CFUUIDCreate(kCFAllocatorDefault);
-    _digestAuthenticationNonce = GCDWebServerComputeMD5Digest(@"%@", CFBridgingRelease(CFUUIDCreateString(kCFAllocatorDefault, uuid)));
+    _digestAuthenticationNonce = MImportWebServerComputeMD5Digest(@"%@", CFBridgingRelease(CFUUIDCreateString(kCFAllocatorDefault, uuid)));
     CFRelease(uuid);
   }
 }
@@ -371,24 +371,24 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
   _responseMessage = CFHTTPMessageCreateResponse(kCFAllocatorDefault, statusCode, NULL, kCFHTTPVersion1_1);
   CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Connection"), CFSTR("Close"));
   CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Server"), (__bridge CFStringRef)_server.serverName);
-  CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Date"), (__bridge CFStringRef)GCDWebServerFormatRFC822([NSDate date]));
+  CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Date"), (__bridge CFStringRef)MImportWebServerFormatRFC822([NSDate date]));
 }
 
 - (void)_startProcessingRequest {
   GWS_DCHECK(_responseMessage == NULL);
   
-  GCDWebServerResponse* preflightResponse = [self preflightRequest:_request];
+  MImportWebServerResponse* preflightResponse = [self preflightRequest:_request];
   if (preflightResponse) {
     [self _finishProcessingRequest:preflightResponse];
   } else {
-    [self processRequest:_request completion:^(GCDWebServerResponse* processResponse) {
+    [self processRequest:_request completion:^(MImportWebServerResponse* processResponse) {
       [self _finishProcessingRequest:processResponse];
     }];
   }
 }
 
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
-- (void)_finishProcessingRequest:(GCDWebServerResponse*)response {
+- (void)_finishProcessingRequest:(MImportWebServerResponse*)response {
   GWS_DCHECK(_responseMessage == NULL);
   BOOL hasBody = NO;
   
@@ -411,7 +411,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
   if (_response) {
     [self _initializeResponseHeadersWithStatusCode:_response.statusCode];
     if (_response.lastModifiedDate) {
-      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Last-Modified"), (__bridge CFStringRef)GCDWebServerFormatRFC822(_response.lastModifiedDate));
+      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Last-Modified"), (__bridge CFStringRef)MImportWebServerFormatRFC822(_response.lastModifiedDate));
     }
     if (_response.eTag) {
       CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("ETag"), (__bridge CFStringRef)_response.eTag);
@@ -424,7 +424,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
       }
     }
     if (_response.contentType != nil) {
-      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Content-Type"), (__bridge CFStringRef)GCDWebServerNormalizeHeaderValue(_response.contentType));
+      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Content-Type"), (__bridge CFStringRef)MImportWebServerNormalizeHeaderValue(_response.contentType));
     }
     if (_response.contentLength != NSUIntegerMax) {
       CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Content-Length"), (__bridge CFStringRef)[NSString stringWithFormat:@"%lu", (unsigned long)_response.contentLength]);
@@ -451,7 +451,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
       
     }];
   } else {
-    [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+    [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
   }
   
 }
@@ -460,7 +460,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
   NSError* error = nil;
   if (![_request performOpen:&error]) {
     GWS_LOG_ERROR(@"Failed opening request body for socket %i: %@", _socket, error);
-    [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+    [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
     return;
   }
   
@@ -470,7 +470,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
       if (![_request performClose:&error]) {
         GWS_LOG_ERROR(@"Failed closing request body for socket %i: %@", _socket, error);
       }
-      [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+      [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
       return;
     }
     length -= initialData.length;
@@ -484,7 +484,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
         [self _startProcessingRequest];
       } else {
         GWS_LOG_ERROR(@"Failed closing request body for socket %i: %@", _socket, error);
-        [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+        [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
       }
       
     }];
@@ -493,7 +493,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
       [self _startProcessingRequest];
     } else {
       GWS_LOG_ERROR(@"Failed closing request body for socket %i: %@", _socket, error);
-      [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+      [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
     }
   }
 }
@@ -502,7 +502,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
   NSError* error = nil;
   if (![_request performOpen:&error]) {
     GWS_LOG_ERROR(@"Failed opening request body for socket %i: %@", _socket, error);
-    [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+    [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
     return;
   }
   
@@ -514,7 +514,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
       [self _startProcessingRequest];
     } else {
       GWS_LOG_ERROR(@"Failed closing request body for socket %i: %@", _socket, error);
-      [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+      [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
     }
     
   }];
@@ -537,9 +537,9 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
         requestURL = [self rewriteRequestURL:requestURL withMethod:requestMethod headers:requestHeaders];
         GWS_DCHECK(requestURL);
       }
-      NSString* requestPath = requestURL ? GCDWebServerUnescapeURLString(CFBridgingRelease(CFURLCopyPath((CFURLRef)requestURL))) : nil;  // Don't use -[NSURL path] which strips the ending slash
+      NSString* requestPath = requestURL ? MImportWebServerUnescapeURLString(CFBridgingRelease(CFURLCopyPath((CFURLRef)requestURL))) : nil;  // Don't use -[NSURL path] which strips the ending slash
       NSString* queryString = requestURL ? CFBridgingRelease(CFURLCopyQueryString((CFURLRef)requestURL, NULL)) : nil;  // Don't use -[NSURL query] to make sure query is not unescaped;
-      NSDictionary* requestQuery = queryString ? GCDWebServerParseURLEncodedForm(queryString) : @{};
+      NSDictionary* requestQuery = queryString ? MImportWebServerParseURLEncodedForm(queryString) : @{};
       if (requestMethod && requestURL && requestHeaders && requestPath && requestQuery) {
         for (_handler in _server.handlers) {
           _request = _handler.matchBlock(requestMethod, requestURL, requestHeaders, requestPath, requestQuery);
@@ -569,7 +569,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
                   }];
                 } else {
                   GWS_LOG_ERROR(@"Unsupported 'Expect' / 'Content-Length' header combination on socket %i", _socket);
-                  [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_ExpectationFailed];
+                  [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_ExpectationFailed];
                 }
               } else {
                 if (_request.usesChunkedTransferEncoding) {
@@ -580,28 +580,28 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
               }
             } else {
               GWS_LOG_ERROR(@"Unexpected 'Content-Length' header value on socket %i", _socket);
-              [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_BadRequest];
+              [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_BadRequest];
             }
           } else {
             [self _startProcessingRequest];
           }
         } else {
-          _request = [[GCDWebServerRequest alloc] initWithMethod:requestMethod url:requestURL headers:requestHeaders path:requestPath query:requestQuery];
+          _request = [[MImportWebServerRequest alloc] initWithMethod:requestMethod url:requestURL headers:requestHeaders path:requestPath query:requestQuery];
           GWS_DCHECK(_request);
-          [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_MethodNotAllowed];
+          [self abortRequest:_request withStatusCode:kMImportWebServerHTTPStatusCode_MethodNotAllowed];
         }
       } else {
-        [self abortRequest:nil withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+        [self abortRequest:nil withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
         GWS_DNOT_REACHED();
       }
     } else {
-      [self abortRequest:nil withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+      [self abortRequest:nil withStatusCode:kMImportWebServerHTTPStatusCode_InternalServerError];
     }
     
   }];
 }
 
-- (id)initWithServer:(GCDWebServer*)server localAddress:(NSData*)localAddress remoteAddress:(NSData*)remoteAddress socket:(CFSocketNativeHandle)socket {
+- (id)initWithServer:(MImportWebServer*)server localAddress:(NSData*)localAddress remoteAddress:(NSData*)remoteAddress socket:(CFSocketNativeHandle)socket {
   if ((self = [super init])) {
     _server = server;
     _localAddress = localAddress;
@@ -623,11 +623,11 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 }
 
 - (NSString*)localAddressString {
-  return GCDWebServerStringFromSockAddr(_localAddress.bytes, YES);
+  return MImportWebServerStringFromSockAddr(_localAddress.bytes, YES);
 }
 
 - (NSString*)remoteAddressString {
-  return GCDWebServerStringFromSockAddr(_remoteAddress.bytes, YES);
+  return MImportWebServerStringFromSockAddr(_remoteAddress.bytes, YES);
 }
 
 - (void)dealloc {
@@ -655,7 +655,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 
 @end
 
-@implementation GCDWebServerConnection (Subclassing)
+@implementation MImportWebServerConnection (Subclassing)
 
 - (BOOL)open {
 #ifdef __GCDWEBSERVER_ENABLE_TESTING__
@@ -706,9 +706,9 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 }
 
 // https://tools.ietf.org/html/rfc2617
-- (GCDWebServerResponse*)preflightRequest:(GCDWebServerRequest*)request {
+- (MImportWebServerResponse*)preflightRequest:(MImportWebServerRequest*)request {
   GWS_LOG_DEBUG(@"Connection on socket %i preflighting request \"%@ %@\" with %lu bytes body", _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
-  GCDWebServerResponse* response = nil;
+  MImportWebServerResponse* response = nil;
   if (_server.authenticationBasicAccounts) {
     __block BOOL authenticated = NO;
     NSString* authorizationHeader = [request.headers objectForKey:@"Authorization"];
@@ -722,7 +722,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
       }];
     }
     if (!authenticated) {
-      response = [GCDWebServerResponse responseWithStatusCode:kGCDWebServerHTTPStatusCode_Unauthorized];
+      response = [MImportWebServerResponse responseWithStatusCode:kMImportWebServerHTTPStatusCode_Unauthorized];
       [response setValue:[NSString stringWithFormat:@"Basic realm=\"%@\"", _server.authenticationRealm] forAdditionalHeader:@"WWW-Authenticate"];
     }
   } else if (_server.authenticationDigestAccounts) {
@@ -730,16 +730,16 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
     BOOL isStaled = NO;
     NSString* authorizationHeader = [request.headers objectForKey:@"Authorization"];
     if ([authorizationHeader hasPrefix:@"Digest "]) {
-      NSString* realm = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"realm");
+      NSString* realm = MImportWebServerExtractHeaderValueParameter(authorizationHeader, @"realm");
       if ([realm isEqualToString:_server.authenticationRealm]) {
-        NSString* nonce = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"nonce");
+        NSString* nonce = MImportWebServerExtractHeaderValueParameter(authorizationHeader, @"nonce");
         if ([nonce isEqualToString:_digestAuthenticationNonce]) {
-          NSString* username = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"username");
-          NSString* uri = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"uri");
-          NSString* actualResponse = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"response");
+          NSString* username = MImportWebServerExtractHeaderValueParameter(authorizationHeader, @"username");
+          NSString* uri = MImportWebServerExtractHeaderValueParameter(authorizationHeader, @"uri");
+          NSString* actualResponse = MImportWebServerExtractHeaderValueParameter(authorizationHeader, @"response");
           NSString* ha1 = [_server.authenticationDigestAccounts objectForKey:username];
-          NSString* ha2 = GCDWebServerComputeMD5Digest(@"%@:%@", request.method, uri);  // We cannot use "request.path" as the query string is required
-          NSString* expectedResponse = GCDWebServerComputeMD5Digest(@"%@:%@:%@", ha1, _digestAuthenticationNonce, ha2);
+          NSString* ha2 = MImportWebServerComputeMD5Digest(@"%@:%@", request.method, uri);  // We cannot use "request.path" as the query string is required
+          NSString* expectedResponse = MImportWebServerComputeMD5Digest(@"%@:%@:%@", ha1, _digestAuthenticationNonce, ha2);
           if ([actualResponse isEqualToString:expectedResponse]) {
             authenticated = YES;
           }
@@ -749,14 +749,14 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
       }
     }
     if (!authenticated) {
-      response = [GCDWebServerResponse responseWithStatusCode:kGCDWebServerHTTPStatusCode_Unauthorized];
+      response = [MImportWebServerResponse responseWithStatusCode:kMImportWebServerHTTPStatusCode_Unauthorized];
       [response setValue:[NSString stringWithFormat:@"Digest realm=\"%@\", nonce=\"%@\"%@", _server.authenticationRealm, _digestAuthenticationNonce, isStaled ? @", stale=TRUE" : @""] forAdditionalHeader:@"WWW-Authenticate"];  // TODO: Support Quality of Protection ("qop")
     }
   }
   return response;
 }
 
-- (void)processRequest:(GCDWebServerRequest*)request completion:(GCDWebServerCompletionBlock)completion {
+- (void)processRequest:(MImportWebServerRequest*)request completion:(MImportWebServerCompletionBlock)completion {
   GWS_LOG_DEBUG(@"Connection on socket %i processing request \"%@ %@\" with %lu bytes body", _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
   @try {
     _handler.asyncProcessBlock(request, [completion copy]);
@@ -785,10 +785,10 @@ static inline BOOL _CompareResources(NSString* responseETag, NSString* requestET
   return NO;
 }
 
-- (GCDWebServerResponse*)overrideResponse:(GCDWebServerResponse*)response forRequest:(GCDWebServerRequest*)request {
+- (MImportWebServerResponse*)overrideResponse:(MImportWebServerResponse*)response forRequest:(MImportWebServerRequest*)request {
   if ((response.statusCode >= 200) && (response.statusCode < 300) && _CompareResources(response.eTag, request.ifNoneMatch, response.lastModifiedDate, request.ifModifiedSince)) {
-    NSInteger code = [request.method isEqualToString:@"HEAD"] || [request.method isEqualToString:@"GET"] ? kGCDWebServerHTTPStatusCode_NotModified : kGCDWebServerHTTPStatusCode_PreconditionFailed;
-    GCDWebServerResponse* newResponse = [GCDWebServerResponse responseWithStatusCode:code];
+    NSInteger code = [request.method isEqualToString:@"HEAD"] || [request.method isEqualToString:@"GET"] ? kMImportWebServerHTTPStatusCode_NotModified : kMImportWebServerHTTPStatusCode_PreconditionFailed;
+    MImportWebServerResponse* newResponse = [MImportWebServerResponse responseWithStatusCode:code];
     newResponse.cacheControlMaxAge = response.cacheControlMaxAge;
     newResponse.lastModifiedDate = response.lastModifiedDate;
     newResponse.eTag = response.eTag;
@@ -798,7 +798,7 @@ static inline BOOL _CompareResources(NSString* responseETag, NSString* requestET
   return response;
 }
 
-- (void)abortRequest:(GCDWebServerRequest*)request withStatusCode:(NSInteger)statusCode {
+- (void)abortRequest:(MImportWebServerRequest*)request withStatusCode:(NSInteger)statusCode {
   GWS_DCHECK(_responseMessage == NULL);
   GWS_DCHECK((statusCode >= 400) && (statusCode < 600));
   [self _initializeResponseHeadersWithStatusCode:statusCode];

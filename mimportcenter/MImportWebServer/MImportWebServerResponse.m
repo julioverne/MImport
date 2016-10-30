@@ -26,33 +26,33 @@
  */
 
 #if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
+#error MImportWebServer requires ARC
 #endif
 
 #import <zlib.h>
 
-#import "GCDWebServerPrivate.h"
+#import "MImportWebServerPrivate.h"
 
 #define kZlibErrorDomain @"ZlibErrorDomain"
 #define kGZipInitialBufferSize (256 * 1024)
 
-@interface GCDWebServerBodyEncoder : NSObject <GCDWebServerBodyReader>
-- (id)initWithResponse:(GCDWebServerResponse*)response reader:(id<GCDWebServerBodyReader>)reader;
+@interface MImportWebServerBodyEncoder : NSObject <MImportWebServerBodyReader>
+- (id)initWithResponse:(MImportWebServerResponse*)response reader:(id<MImportWebServerBodyReader>)reader;
 @end
 
-@interface GCDWebServerGZipEncoder : GCDWebServerBodyEncoder
+@interface MImportWebServerGZipEncoder : MImportWebServerBodyEncoder
 @end
 
-@interface GCDWebServerBodyEncoder () {
+@interface MImportWebServerBodyEncoder () {
 @private
-  GCDWebServerResponse* __unsafe_unretained _response;
-  id<GCDWebServerBodyReader> __unsafe_unretained _reader;
+  MImportWebServerResponse* __unsafe_unretained _response;
+  id<MImportWebServerBodyReader> __unsafe_unretained _reader;
 }
 @end
 
-@implementation GCDWebServerBodyEncoder
+@implementation MImportWebServerBodyEncoder
 
-- (id)initWithResponse:(GCDWebServerResponse*)response reader:(id<GCDWebServerBodyReader>)reader {
+- (id)initWithResponse:(MImportWebServerResponse*)response reader:(id<MImportWebServerBodyReader>)reader {
   if ((self = [super init])) {
     _response = response;
     _reader = reader;
@@ -74,16 +74,16 @@
 
 @end
 
-@interface GCDWebServerGZipEncoder () {
+@interface MImportWebServerGZipEncoder () {
 @private
   z_stream _stream;
   BOOL _finished;
 }
 @end
 
-@implementation GCDWebServerGZipEncoder
+@implementation MImportWebServerGZipEncoder
 
-- (id)initWithResponse:(GCDWebServerResponse*)response reader:(id<GCDWebServerBodyReader>)reader {
+- (id)initWithResponse:(MImportWebServerResponse*)response reader:(id<MImportWebServerBodyReader>)reader {
   if ((self = [super initWithResponse:response reader:reader])) {
     response.contentLength = NSUIntegerMax;  // Make sure "Content-Length" header is not set since we don't know it
     [response setValue:@"gzip" forAdditionalHeader:@"Content-Encoding"];
@@ -157,7 +157,7 @@
 
 @end
 
-@interface GCDWebServerResponse () {
+@interface MImportWebServerResponse () {
 @private
   NSString* _type;
   NSUInteger _length;
@@ -171,11 +171,11 @@
   
   BOOL _opened;
   NSMutableArray* _encoders;
-  id<GCDWebServerBodyReader> __unsafe_unretained _reader;
+  id<MImportWebServerBodyReader> __unsafe_unretained _reader;
 }
 @end
 
-@implementation GCDWebServerResponse
+@implementation MImportWebServerResponse
 
 @synthesize contentType=_type, contentLength=_length, statusCode=_status, cacheControlMaxAge=_maxAge, lastModifiedDate=_lastModified, eTag=_eTag,
             gzipContentEncodingEnabled=_gzipped, additionalHeaders=_headers;
@@ -188,7 +188,7 @@
   if ((self = [super init])) {
     _type = nil;
     _length = NSUIntegerMax;
-    _status = kGCDWebServerHTTPStatusCode_OK;
+    _status = kMImportWebServerHTTPStatusCode_OK;
     _maxAge = 0;
     _headers = [[NSMutableDictionary alloc] init];
     _encoders = [[NSMutableArray alloc] init];
@@ -223,7 +223,7 @@
 - (void)prepareForReading {
   _reader = self;
   if (_gzipped) {
-    GCDWebServerGZipEncoder* encoder = [[GCDWebServerGZipEncoder alloc] initWithResponse:self reader:_reader];
+    MImportWebServerGZipEncoder* encoder = [[MImportWebServerGZipEncoder alloc] initWithResponse:self reader:_reader];
     [_encoders addObject:encoder];
     _reader = encoder;
   }
@@ -240,7 +240,7 @@
   return [_reader open:error];
 }
 
-- (void)performReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)block {
+- (void)performReadDataWithCompletion:(MImportWebServerBodyReaderCompletionBlock)block {
   if ([_reader respondsToSelector:@selector(asyncReadDataWithCompletion:)]) {
     [_reader asyncReadDataWithCompletion:[block copy]];
   } else {
@@ -281,7 +281,7 @@
 
 @end
 
-@implementation GCDWebServerResponse (Extensions)
+@implementation MImportWebServerResponse (Extensions)
 
 + (instancetype)responseWithStatusCode:(NSInteger)statusCode {
   return [[self alloc] initWithStatusCode:statusCode];
@@ -300,7 +300,7 @@
 
 - (instancetype)initWithRedirect:(NSURL*)location permanent:(BOOL)permanent {
   if ((self = [self init])) {
-    self.statusCode = permanent ? kGCDWebServerHTTPStatusCode_MovedPermanently : kGCDWebServerHTTPStatusCode_TemporaryRedirect;
+    self.statusCode = permanent ? kMImportWebServerHTTPStatusCode_MovedPermanently : kMImportWebServerHTTPStatusCode_TemporaryRedirect;
     [self setValue:[location absoluteString] forAdditionalHeader:@"Location"];
   }
   return self;

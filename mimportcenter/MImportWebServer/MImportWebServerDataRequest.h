@@ -25,46 +25,36 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
-#endif
+#import "MImportWebServerRequest.h"
 
-#import "GCDWebServerPrivate.h"
+/**
+ *  The MImportWebServerDataRequest subclass of MImportWebServerRequest stores the body
+ *  of the HTTP request in memory.
+ */
+@interface MImportWebServerDataRequest : MImportWebServerRequest
 
-@interface GCDWebServerURLEncodedFormRequest () {
-@private
-  NSDictionary* _arguments;
-}
+/**
+ *  Returns the data for the request body.
+ */
+@property(nonatomic, readonly) NSData* data;
+
 @end
 
-@implementation GCDWebServerURLEncodedFormRequest
+@interface MImportWebServerDataRequest (Extensions)
 
-@synthesize arguments=_arguments;
+/**
+ *  Returns the data for the request body interpreted as text. If the content
+ *  type of the body is not a text one, or if an error occurs, nil is returned.
+ *
+ *  The text encoding used to interpret the data is extracted from the
+ *  "Content-Type" header or defaults to UTF-8.
+ */
+@property(nonatomic, readonly) NSString* text;
 
-+ (NSString*)mimeType {
-  return @"application/x-www-form-urlencoded";
-}
-
-- (BOOL)close:(NSError**)error {
-  if (![super close:error]) {
-    return NO;
-  }
-  
-  NSString* charset = GCDWebServerExtractHeaderValueParameter(self.contentType, @"charset");
-  NSString* string = [[NSString alloc] initWithData:self.data encoding:GCDWebServerStringEncodingFromCharset(charset)];
-  _arguments = GCDWebServerParseURLEncodedForm(string);
-  GWS_DCHECK(_arguments);
-  
-  return YES;
-}
-
-- (NSString*)description {
-  NSMutableString* description = [NSMutableString stringWithString:[super description]];
-  [description appendString:@"\n"];
-  for (NSString* argument in [[_arguments allKeys] sortedArrayUsingSelector:@selector(compare:)]) {
-    [description appendFormat:@"\n%@ = %@", argument, [_arguments objectForKey:argument]];
-  }
-  return description;
-}
+/**
+ *  Returns the data for the request body interpreted as a JSON object. If the
+ *  content type of the body is not JSON, or if an error occurs, nil is returned.
+ */
+@property(nonatomic, readonly) id jsonObject;
 
 @end

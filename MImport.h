@@ -1,5 +1,6 @@
 #define _Bool BOOL
 #import "mimportsettings/prefs.h"
+#import <CommonCrypto/CommonCrypto.h>
 
 // Media type keys
 #define kIPIMediaSong		@"song"		// Song, music
@@ -13,7 +14,7 @@
 #define kIPIMediaEBook		@"ebook"	// E-Book
 #define kIPIMediaTVEpisode	@"tv-episode"	// TV episode
 
-#define PORT_SERVER 7565
+#define PORT_SERVER 4194
 
 extern char *__progname;
 #define isDeviceIPad (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
@@ -34,7 +35,7 @@ extern char *__progname;
 -(void)setDownloadHandler:(id)arg1 completionBlock:(id)arg2 ;
 @end
 
-@interface MImportDirBrowserController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate> {
+@interface MImportDirBrowserController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate> {
 @private	
 	NSString *_path;
 	NSArray *_files;
@@ -51,13 +52,16 @@ extern char *__progname;
 - (void)importFile:(NSString*)file withMetadata:(NSDictionary*)metadataDic;
 @end
 
+
 @interface MImportEditTagListController : PSListController <UIActionSheetDelegate, UIImagePickerControllerDelegate> {
 @private	
 	NSString *_path;
 	NSMutableDictionary *_tags;
+	BOOL _isFromURL;
 }
 @property (strong) NSString *path;
 @property (strong) NSMutableDictionary *tags;
+@property (assign) BOOL isFromURL;
 - (id)initWithPath:(NSString*)pat;
 - (void)importFileNow;
 @end

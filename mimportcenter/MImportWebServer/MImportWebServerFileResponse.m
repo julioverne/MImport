@@ -26,16 +26,16 @@
  */
 
 #if !__has_feature(objc_arc)
-#error GCDWebServer requires ARC
+#error MImportWebServer requires ARC
 #endif
 
 #import <sys/stat.h>
 
-#import "GCDWebServerPrivate.h"
+#import "MImportWebServerPrivate.h"
 
 #define kFileReadBufferSize (32 * 1024)
 
-@interface GCDWebServerFileResponse () {
+@interface MImportWebServerFileResponse () {
 @private
   NSString* _path;
   NSUInteger _offset;
@@ -44,7 +44,7 @@
 }
 @end
 
-@implementation GCDWebServerFileResponse
+@implementation MImportWebServerFileResponse
 
 + (instancetype)responseWithFile:(NSString*)path {
   return [[[self class] alloc] initWithFile:path];
@@ -98,26 +98,26 @@ static inline NSDate* _NSDateFromTimeSpec(const struct timespec* t) {
 			}		
 		}
 		if(isDir) {
-			return (GCDWebServerFileResponse*)[GCDWebServerDataResponse responseWithJSONObject:@{@"path": path, @"total": @([files count]), @"content": dirContent,}];
+			return (MImportWebServerFileResponse*)[MImportWebServerDataResponse responseWithJSONObject:@{@"path": path, @"total": @([files count]), @"content": dirContent,}];
 		}/* else {
-			return (GCDWebServerFileResponse*)[GCDWebServerDataResponse responseWithData:[NSData data] contentType:@"application/oct-stream"];
+			return (MImportWebServerFileResponse*)[MImportWebServerDataResponse responseWithData:[NSData data] contentType:@"application/oct-stream"];
 		}*/
 		
    //}
 	
-	return (GCDWebServerFileResponse*)[GCDWebServerDataResponse responseWithData:[NSData data] contentType:@"application/oct-stream"];
+	return (MImportWebServerFileResponse*)[MImportWebServerDataResponse responseWithData:[NSData data] contentType:@"application/oct-stream"];
     //return nil;
   }
 #ifndef __LP64__
   if (info.st_size >= (off_t)4294967295) {  // In 32 bit mode, we can't handle files greater than 4 GiBs (don't use "NSUIntegerMax" here to avoid potential unsigned to signed conversion issues)
     GWS_DNOT_REACHED();
-    return (GCDWebServerFileResponse*)[GCDWebServerDataResponse responseWithData:[NSData data] contentType:@"application/oct-stream"];
+    return (MImportWebServerFileResponse*)[MImportWebServerDataResponse responseWithData:[NSData data] contentType:@"application/oct-stream"];
     return nil;
   }
 #endif
   NSUInteger fileSize = (NSUInteger)info.st_size;
   
-  BOOL hasByteRange = GCDWebServerIsValidByteRange(range);
+  BOOL hasByteRange = MImportWebServerIsValidByteRange(range);
   if (hasByteRange) {
     if (range.location != NSUIntegerMax) {
       range.location = MIN(range.location, fileSize);
@@ -139,7 +139,7 @@ static inline NSDate* _NSDateFromTimeSpec(const struct timespec* t) {
     _offset = range.location;
     _size = range.length;
     if (hasByteRange) {
-      [self setStatusCode:kGCDWebServerHTTPStatusCode_PartialContent];
+      [self setStatusCode:kMImportWebServerHTTPStatusCode_PartialContent];
       [self setValue:[NSString stringWithFormat:@"bytes %lu-%lu/%lu", (unsigned long)_offset, (unsigned long)(_offset + _size - 1), (unsigned long)fileSize] forAdditionalHeader:@"Content-Range"];
       GWS_LOG_DEBUG(@"Using content bytes range [%lu-%lu] for file \"%@\"", (unsigned long)_offset, (unsigned long)(_offset + _size - 1), path);
     }
@@ -149,14 +149,14 @@ static inline NSDate* _NSDateFromTimeSpec(const struct timespec* t) {
       NSData* data = [[fileName stringByReplacingOccurrencesOfString:@"\"" withString:@""] dataUsingEncoding:NSISOLatin1StringEncoding allowLossyConversion:YES];
       NSString* lossyFileName = data ? [[NSString alloc] initWithData:data encoding:NSISOLatin1StringEncoding] : nil;
       if (lossyFileName) {
-        NSString* value = [NSString stringWithFormat:@"attachment; filename=\"%@\"; filename*=UTF-8''%@", lossyFileName, GCDWebServerEscapeURLString(fileName)];
+        NSString* value = [NSString stringWithFormat:@"attachment; filename=\"%@\"; filename*=UTF-8''%@", lossyFileName, MImportWebServerEscapeURLString(fileName)];
         [self setValue:value forAdditionalHeader:@"Content-Disposition"];
       } else {
         GWS_DNOT_REACHED();
       }
     }
     
-    self.contentType = GCDWebServerGetMimeTypeForExtension([_path pathExtension]);
+    self.contentType = MImportWebServerGetMimeTypeForExtension([_path pathExtension]);
     self.contentLength = _size;
     self.lastModifiedDate = _NSDateFromTimeSpec(&info.st_mtimespec);
     self.eTag = [NSString stringWithFormat:@"%llu/%li/%li", info.st_ino, info.st_mtimespec.tv_sec, info.st_mtimespec.tv_nsec];
@@ -168,13 +168,13 @@ static inline NSDate* _NSDateFromTimeSpec(const struct timespec* t) {
   _file = open([_path fileSystemRepresentation], O_NOFOLLOW | O_RDONLY);
   if (_file <= 0) {
     if (error) {
-      *error = GCDWebServerMakePosixError(errno);
+      *error = MImportWebServerMakePosixError(errno);
     }
     return NO;
   }
   if (lseek(_file, _offset, SEEK_SET) != (off_t)_offset) {
     if (error) {
-      *error = GCDWebServerMakePosixError(errno);
+      *error = MImportWebServerMakePosixError(errno);
     }
     close(_file);
     return NO;
@@ -188,7 +188,7 @@ static inline NSDate* _NSDateFromTimeSpec(const struct timespec* t) {
   ssize_t result = read(_file, data.mutableBytes, length);
   if (result < 0) {
     if (error) {
-      *error = GCDWebServerMakePosixError(errno);
+      *error = MImportWebServerMakePosixError(errno);
     }
     return nil;
   }
