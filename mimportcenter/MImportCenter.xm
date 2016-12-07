@@ -49,10 +49,10 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 		UInt32 piDataSize   = sizeof(piDict);  
 		AudioFileGetProperty( fileID, kAudioFilePropertyInfoDictionary, &piDataSize, &piDict);
 		if(!piDict) {
-			piDict = (__bridge CFDictionaryRef)[NSMutableDictionary dictionary];
+			piDict = (__bridge CFDictionaryRef)[NSDictionary dictionary];
 		}
-		AudioFileClose(fileID);
-		return [MImportWebServerDataResponse responseWithJSONObject:(__bridge NSDictionary *)piDict];
+		AudioFileClose(fileID);		
+		return [MImportWebServerDataResponse responseWithJSONObject:(__bridge NSDictionary*)piDict];
 	}];
 }
 %new

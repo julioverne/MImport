@@ -30,8 +30,6 @@
 		spec = [PSSpecifier emptyGroupSpecifier];
         [specifiers addObject:spec];
 
-		
-		
 		spec = [PSSpecifier emptyGroupSpecifier];
         [specifiers addObject:spec];
 		spec = [PSSpecifier preferenceSpecifierNamed:@"Reset Settings"
@@ -44,17 +42,6 @@
         spec->action = @selector(reset);
         [specifiers addObject:spec];*/
 		
-		spec = [PSSpecifier preferenceSpecifierNamed:@"TIPS:"
-		                                      target:self
-											  set:Nil
-											  get:Nil
-                                              detail:Nil
-											  cell:PSGroupCell
-											  edit:Nil];
-		[spec setProperty:@"TIPS:" forKey:@"label"];
-		[spec setProperty:@"* You can Import Music/Video on Any App via Share/Open In App diretly to the Music App.\n\n* Tap&Hold any Folder to set as Favorite for quick access.\n\n* When you edit tags you can tap in \"Fetch Tags Online Now\" this allow to get Artwork, Artist, Album online.. if it fail you can change tag \"Title\" and Tap Fetch again for an search more efficient." forKey:@"footerText"];
-        [specifiers addObject:spec];
-		
 		spec = [PSSpecifier preferenceSpecifierNamed:@"Developer"
 		                                      target:self
 											  set:Nil
@@ -63,6 +50,7 @@
 											  cell:PSGroupCell
 											  edit:Nil];
 		[spec setProperty:@"Developer" forKey:@"label"];
+		[spec setProperty:@"TIPS:\n* You can Import Music/Video on Any App via Share/Open In App diretly to the Music App.\n\n* Tap&Hold any Folder to set as Favorite for quick access.\n\n" forKey:@"footerText"];
         [specifiers addObject:spec];
 		spec = [PSSpecifier preferenceSpecifierNamed:@"Follow julioverne"
                                               target:self
@@ -132,7 +120,7 @@
 - (void)HeaderCell
 {
 	@autoreleasepool {
-	UIView *headerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 120)];
+	UIView *headerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 100)];
 	int width = [[UIScreen mainScreen] bounds].size.width;
 	CGRect frame = CGRectMake(0, 20, width, 60);
 		CGRect botFrame = CGRectMake(0, 55, width, 60);

@@ -22,6 +22,7 @@
 const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 
 static __strong NSString* kPathWork = @"/";// @"/private/var/mobile/Media/";
+static __strong NSString* kSearchTitle = @"searchTitle";
 static __strong NSString* kTitle = @"title";
 static __strong NSString* kAlbum = @"album";
 static __strong NSString* kArtist = @"artist";
@@ -149,6 +150,7 @@ NSDictionary* getMusicInfo(NSDictionary* item)
 
 void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
 {
+	@try{
 	if (access(mimport_running, F_OK) != 0) {
 		if(open(mimport_running, O_CREAT)) {
 		}
@@ -268,7 +270,8 @@ void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
 	
 	
 	int durationSecond = 0;
-	int year = 2016;
+	NSDateComponents *components = [[NSCalendar currentCalendar] components:NSCalendarUnitYear fromDate:[NSDate date]];
+	int year = (int)[components year];
 	int trackNumber = 1;
 	int trackCount = 1;
 	int isExplicit = 0;
@@ -324,13 +327,11 @@ void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
 	//NSLog(@"title %@, *album %@, *artist %@, trackNumber %d, trackCount %d, year %d", title, album, artist, trackNumber, trackCount, year);
 	
 	long long itemGet = (arc4random() % 100000000) + 1;
-	
 	int itemID = itemGet;
-	
 	
 	NSString* artworkURLString = [NSString stringWithFormat:@"%@%@:%@%@", @"http://", [audioURL host], [audioURL port], urlEncodeUsingEncoding(ap)];
 	
-	NSString *ext = [[mediaPath pathExtension] lowercaseString];
+	NSString *ext = [[[mediaPath lastPathComponent]?:@"" pathExtension]?:@"" lowercaseString];	
 	NSString *kindType = kIPIMediaSong;
 	if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"m4v"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"3gp"]) {
 		kindType = kIPIMediaMusicVideo;
@@ -430,6 +431,8 @@ void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
 	}
 	
 	}
+	} @catch (NSException * e) {
+	}
 }
 
 
@@ -458,6 +461,7 @@ static __strong UINavigationController *navCon;
 }
 - (void)tabBar:(UITabBar *)tabBar didSelectItem:(UITabBarItem *)item
 {
+	@try{
     NSInteger selectedTag = tabBar.selectedItem.tag;
 	MImportDirBrowserController *dbtvc = [[[MImportDirBrowserController alloc] init] initWithStyle:UITableViewStyleGrouped];
 	dbtvc.path = @"/";
@@ -478,10 +482,13 @@ static __strong UINavigationController *navCon;
 			dbtvc1.path = current_pt;
 			[navCon pushViewController:dbtvc1 animated:NO];
 		}
-	}	
+	}
+	} @catch (NSException * e) {
+	}
 }
 - (void)applyTabBarNavController:(UINavigationController*)navc
 {
+	@try{
 	float y = navCon.view.frame.size.height - 50;
 	if(UIView* tabVi = [navCon.view viewWithTag:548]) {
 		[tabVi removeFromSuperview];
@@ -496,8 +503,8 @@ static __strong UINavigationController *navCon;
 	[navCon.view addSubview:myTabBar];
 	[myTabBar setAutoresizingMask:UIViewAutoresizingFlexibleWidth];
 	[myTabBar setFrame:CGRectMake(0, y, navCon.view.frame.size.width, myTabBar.frame.size.height)];
-	UITabBarItem *tabBarItem1 = [[UITabBarItem alloc] initWithTitle:@"/" image:[[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"] pathForResource:@"dir" ofType:@"png"]] tag:0];
-	UITabBarItem *tabBarItem2 = [[UITabBarItem alloc] initWithTitle:@"mobile" image:[[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"] pathForResource:@"dir" ofType:@"png"]] tag:1];
+	UITabBarItem *tabBarItem1 = [[UITabBarItem alloc] initWithTitle:@"/" image:[[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"]?:[NSBundle mainBundle] pathForResource:@"dir" ofType:@"png"]] tag:0];
+	UITabBarItem *tabBarItem2 = [[UITabBarItem alloc] initWithTitle:@"mobile" image:[[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"]?:[NSBundle mainBundle] pathForResource:@"dir" ofType:@"png"]] tag:1];
 	UITabBarItem *tabBarItem3 = [[UITabBarItem alloc] initWithTabBarSystemItem:UITabBarSystemItemFavorites tag:2];
 	[tabBarItem3 _setInternalTitle:[[NSUserDefaults standardUserDefaults] objectForKey:@"fav1_name"]?:@"Documents"];
 	UITabBarItem *tabBarItem4 = [[UITabBarItem alloc] initWithTabBarSystemItem:UITabBarSystemItemFavorites tag:3];
@@ -505,9 +512,12 @@ static __strong UINavigationController *navCon;
 	myTabBar.items = @[tabBarItem1, tabBarItem2, tabBarItem3, tabBarItem4];
 	myTabBar.selectedItem = [myTabBar.items objectAtIndex:1];
 	[self tabBar:myTabBar didSelectItem:myTabBar.selectedItem];
+	} @catch (NSException * e) {
+	}
 }
 - (void)actionSheet:(UIActionSheet *)alert clickedButtonAtIndex:(NSInteger)button 
 {
+	@try{
 	if (button == [alert cancelButtonIndex]) {
 		return;
 	} else if(self.pathFav) {
@@ -516,6 +526,8 @@ static __strong UINavigationController *navCon;
 		[defaults setObject:[self.pathFav lastPathComponent] forKey:button==0?@"fav1_name":@"fav2_name"];
 		[defaults synchronize];
 		[[MImportTapMenu sharedInstance] applyTabBarNavController:navCon];
+	}
+	} @catch (NSException * e) {
 	}
 }
 @end
@@ -628,6 +640,14 @@ static __strong UINavigationController *navCon;
 		[self.navigationController popViewControllerAnimated:YES];
 	}	
 }
+- (id)fileExt
+{
+	return [self.tags objectForKey:@"fileEX"]?:@"";
+}
+- (id)fileName
+{
+	return [[self.path lastPathComponent]?:@"" stringByDeletingPathExtension]?:@"";
+}
 - (id)initWithPath:(NSString*)pat
 {
 	self = [super init];
@@ -637,6 +657,7 @@ static __strong UINavigationController *navCon;
 		usleep(1500000); //wait server start again.
 	}
 	if(self) {
+		@try{
 		self.path = pat;
 		self.tags = [NSMutableDictionary dictionary];
 		
@@ -730,7 +751,8 @@ static __strong UINavigationController *navCon;
 		genre     = [(__bridge NSDictionary *)piDict objectForKey:kGenre]?:@"";
 		composer  = [(__bridge NSDictionary *)piDict objectForKey:kComposer]?:@"";
 		
-		int year = 2016;
+		NSDateComponents *components = [[NSCalendar currentCalendar] components:NSCalendarUnitYear fromDate:[NSDate date]];
+		int year = (int)[components year];
 		int trackNumber = 1;
 		int trackCount = 1;
 		int isExplicit = 0;
@@ -769,13 +791,17 @@ static __strong UINavigationController *navCon;
 			}
 		}
 		
-		NSString *ext = [[self.path pathExtension] lowercaseString];
+		NSString *ext = [[[self.path lastPathComponent]?:@"" pathExtension]?:@"" lowercaseString];
+		[self.tags setObject:ext.length>0?ext:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Doesn't support the file type" value:@"Doesn't support the file type" table:nil] forKey:@"fileEX"];
+		
+		
 		int kindType = 1;
 		if ([ext isEqualToString:@"mp4"] || [ext isEqualToString:@"m4v"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"3gp"]) {
 			kindType = 2;
 		} else if ([ext isEqualToString:@"m4r"]) {
 			kindType = 4;
 		}
+		[self.tags setObject:title forKey:kSearchTitle];
 		[self.tags setObject:title forKey:kTitle];
 		[self.tags setObject:album forKey:kAlbum];
 		[self.tags setObject:artist forKey:kArtist];
@@ -789,7 +815,9 @@ static __strong UINavigationController *navCon;
 		[self.tags setObject:@(kindType) forKey:kKindType];
 		if(imageData != nil) {
 			[self.tags setObject:imageData forKey:kArtwork];
-		}		
+		}	
+		} @catch (NSException * e) {
+		}
 	}
 	return self;
 }
@@ -814,19 +842,51 @@ static __strong UINavigationController *navCon;
 		NSMutableArray* specifiers = [NSMutableArray array];
 		PSSpecifier* spec;
 		
-		spec = [PSSpecifier preferenceSpecifierNamed:[self.path lastPathComponent]
-                                              target:self
-                                                 set:NULL
-                                                 get:NULL
+		spec = [PSSpecifier preferenceSpecifierNamed:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Info" value:@"Info" table:nil]
+		                                      target:self
+											  set:Nil
+											  get:Nil
                                               detail:Nil
-                                                cell:PSStaticTextCell
-                                                edit:Nil];
-        [specifiers addObject:spec];
+											  cell:PSGroupCell
+											  edit:Nil];
+		[spec setProperty:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Info" value:@"Info" table:nil] forKey:@"label"];
+		[specifiers addObject:spec];
+		spec = [PSSpecifier preferenceSpecifierNamed:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Name" value:@"Name" table:nil]
+					      target:self
+						 set:NULL
+						 get:@selector(fileName)
+					      detail:Nil
+						cell:PSTitleValueCell
+						edit:Nil];
+		[specifiers addObject:spec];
+		spec = [PSSpecifier preferenceSpecifierNamed:@"Type"
+					      target:self
+						 set:NULL
+						 get:@selector(fileExt)
+					      detail:Nil
+						cell:PSTitleValueCell
+						edit:Nil];
+		[specifiers addObject:spec];
 		
-		spec = [PSSpecifier emptyGroupSpecifier];
+		spec = [PSSpecifier preferenceSpecifierNamed:@"Search Tags Online"
+		                                      target:self
+											  set:Nil
+											  get:Nil
+                                              detail:Nil
+											  cell:PSGroupCell
+											  edit:Nil];
+		[spec setProperty:@"Search Tags Online" forKey:@"label"];
+		[specifiers addObject:spec];
+		spec = [PSSpecifier preferenceSpecifierNamed:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Search" value:@"Search" table:nil]
+                                              target:self
+											  set:@selector(setPreferenceValue:specifier:)
+											  get:@selector(readPreferenceValue:)
+                                              detail:Nil
+											  cell:PSEditTextCell
+											  edit:Nil];
+		[spec setProperty:kSearchTitle forKey:@"key"];
         [specifiers addObject:spec];
-		
-		spec = [PSSpecifier preferenceSpecifierNamed:@"Fetch Tags Online Now"
+		spec = [PSSpecifier preferenceSpecifierNamed:@"Fetch Tags Now"
                                               target:self
                                                  set:NULL
                                                  get:NULL
@@ -835,7 +895,7 @@ static __strong UINavigationController *navCon;
                                                 edit:Nil];
 		spec->action = @selector(getInfoNow);
 		[spec setProperty:[NSNumber numberWithBool:TRUE] forKey:@"hasIcon"];
-		[spec setProperty:[[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"] pathForResource:@"icon" ofType:@"png"]] forKey:@"iconImage"];
+		[spec setProperty:[[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"]?:[NSBundle mainBundle] pathForResource:@"icon" ofType:@"png"]] forKey:@"iconImage"];
         [specifiers addObject:spec];
 		
 		/*spec = [PSSpecifier emptyGroupSpecifier];
@@ -869,11 +929,20 @@ static __strong UINavigationController *navCon;
 											  detail:Nil
 												cell:PSSegmentCell
 												edit:Nil];
-		NSString *extensionType = [[self.path pathExtension] lowercaseString];
+		NSString *extensionType = [self fileExt];
 		if ([extensionType isEqualToString:@"m4a"] || [extensionType isEqualToString:@"m4r"]) {
-			[spec setValues:@[@(1), @(2), @(3), @(4)] titles:@[@"Song", @"Video", @"TV episode", @"Ringtone"]];
+			[spec setValues:@[@(1), @(2), @(3), @(4)] titles:@[
+			[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/FuseUI.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"MUSIC" value:@"Song" table:@"FuseUI"],
+			@"Video",
+			@"TV episode",
+			@"Ringtone",
+			]];
 		} else {
-			[spec setValues:@[@(1), @(2), @(3)] titles:@[@"Song", @"Video", @"TV episode"]];
+			[spec setValues:@[@(1), @(2), @(3)] titles:@[
+			[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/FuseUI.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"MUSIC" value:@"Song" table:@"FuseUI"],
+			@"Video",
+			@"TV episode",
+			]];
 		}
 		[spec setProperty:kKindType forKey:@"key"];
 		[specifiers addObject:spec];
@@ -890,7 +959,7 @@ static __strong UINavigationController *navCon;
 		if(NSData* dataArtWork = [self.tags objectForKey:kArtwork]) {
 			[spec setProperty:[UIImage imageWithData:dataArtWork] forKey:@"iconImage"];
 		} else {
-			[spec setProperty:[[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"] pathForResource:@"icon" ofType:@"png"]] forKey:@"iconImage"];
+			[spec setProperty:[[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"]?:[NSBundle mainBundle] pathForResource:@"icon" ofType:@"png"]] forKey:@"iconImage"];
 		}
         [specifiers addObject:spec];
 		
@@ -968,7 +1037,7 @@ static __strong UINavigationController *navCon;
 		[spec setProperty:kTrackCount forKey:@"key"];
         [specifiers addObject:spec];		
 		
-		spec = [PSSpecifier preferenceSpecifierNamed:@"Explicit"
+		spec = [PSSpecifier preferenceSpecifierNamed:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/MediaPlayer.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"EXPLICIT_CONTENT_NOT_ALLOWED_TITLE" value:@"Explicit" table:@"MediaPlayer"]
                                                   target:self
 											         set:@selector(setPreferenceValue:specifier:)
 											         get:@selector(readPreferenceValue:)
@@ -979,7 +1048,8 @@ static __strong UINavigationController *navCon;
 		[specifiers addObject:spec];
 		
 		spec = [PSSpecifier emptyGroupSpecifier];
-        [spec setProperty:@"MImport © 2016 julioverne" forKey:@"footerText"];
+		NSDateComponents *components = [[NSCalendar currentCalendar] components:NSCalendarUnitYear fromDate:[NSDate date]];
+        [spec setProperty:[NSString stringWithFormat:@"MImport © %d julioverne", (int)[components year]] forKey:@"footerText"];
         [specifiers addObject:spec];
 		_specifiers = [specifiers copy];
 	}
@@ -992,8 +1062,9 @@ static __strong UINavigationController *navCon;
 	[hud setText:@"Fetching..."];
 	[hud showInView:self.view];
  	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+		@try{
 		NSDictionary* responceInfo = getMusicInfo(@{
-			kTitle:[self.tags objectForKey:kTitle]?[[self.tags objectForKey:kTitle] isEqualToString:@"Unknown Title"]?@"":[self.tags objectForKey:kTitle]:@"",
+			kTitle:[self.tags objectForKey:kSearchTitle]?[[self.tags objectForKey:kSearchTitle] isEqualToString:@"Unknown Title"]?@"":[self.tags objectForKey:kSearchTitle]:@"",
 			kAlbum:[self.tags objectForKey:kAlbum]?[[self.tags objectForKey:kAlbum] isEqualToString:@"Unknown Album"]?@"":[self.tags objectForKey:kAlbum]:@"",
 			kArtist:[self.tags objectForKey:kArtist]?[[self.tags objectForKey:kArtist] isEqualToString:@"Unknown Artist"]?@"":[self.tags objectForKey:kArtist]:@"",
 			kDuration:[self.tags objectForKey:kDuration]?:@"",
@@ -1060,6 +1131,8 @@ static __strong UINavigationController *navCon;
 			[hud hide];
 			[self reloadSpecifiers];
 		});
+		} @catch (NSException * e) {
+		}
 	});
 } 
 - (void)openLibrary
@@ -1080,10 +1153,27 @@ static __strong UINavigationController *navCon;
 - (void)viewDidLoad
 {
 	[super viewDidLoad];
-	self.title = [[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"] localizedStringForKey:@"Edit" value:@"Edit" table:nil];
-	__strong UIBarButtonItem* kBTRight = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"] style:UIBarButtonItemStylePlain target:self action:@selector(importFileNow)];
+	self.title = [[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Edit" value:@"Edit" table:nil];
+	__strong UIBarButtonItem* kBTRight = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"] style:UIBarButtonItemStylePlain target:self action:@selector(importFileNow)];
 	kBTRight.tag = 4;
 	self.navigationItem.rightBarButtonItem = kBTRight;
+	static __strong UIRefreshControl *refreshControl;
+	if(!refreshControl) {
+		refreshControl = [[UIRefreshControl alloc] init];
+		[refreshControl addTarget:self action:@selector(refresh:) forControlEvents:UIControlEventValueChanged];
+		refreshControl.tag = 8654;
+	}	
+	if(UITableView* tableV = (UITableView *)object_getIvar(self, class_getInstanceVariable([self class], "_table"))) {
+		if(UIView* rem = [tableV viewWithTag:8654]) {
+			[rem removeFromSuperview];
+		}
+		[tableV addSubview:refreshControl];
+	}
+}
+- (void)refresh:(UIRefreshControl *)refresh
+{
+	[self reloadSpecifiers];
+	[refresh endRefreshing];
 }
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier
 {
@@ -1102,7 +1192,7 @@ static __strong UINavigationController *navCon;
 
 
 @implementation MImportDirBrowserController
-@synthesize path = _path, files = _files, selectedRows = _selectedRows, editRow = _editRow, contentDir = _contentDir;
+@synthesize path = _path, files = _files, selectedRows = _selectedRows, editRow = _editRow, contentDir = _contentDir, kImageAudio = _kImageAudio;
 - (id)initWithStyle:(UITableViewStyle)style
 {
     self = [super initWithStyle:style];
@@ -1138,10 +1228,11 @@ static __strong UINavigationController *navCon;
 }
 - (BOOL)extensionIsSupported:(NSString*)ext
 {
-	if([ext isEqualToString:@"mp3"] || // ok
+	if(ext&&([ext isEqualToString:@"mp3"] || // ok
 	   [ext isEqualToString:@"aac"] || // ok
 	   [ext isEqualToString:@"m4a"] || // ok
 	   [ext isEqualToString:@"m4r"] || // ok
+	   [ext isEqualToString:@"m4b"] || // ok
 	   [ext isEqualToString:@"wav"] || // ok
 	   [ext isEqualToString:@"aif"] || // ok
 	   [ext isEqualToString:@"aiff"] || // ok
@@ -1153,7 +1244,7 @@ static __strong UINavigationController *navCon;
 	   [ext isEqualToString:@"m4v"] || // ok
 	   [ext isEqualToString:@"mov"] || // ok
 	   [ext isEqualToString:@"3gp"] // ok	   
-	   ) {
+	   )) {
 		return YES;
 	}
 	return NO;
@@ -1193,7 +1284,7 @@ static __strong UINavigationController *navCon;
 		if(isdir) {
 			[tempFiles addObject:file];
 		} else {
-			NSString *ext = [[file pathExtension] lowercaseString];
+			NSString *ext = [[file pathExtension]?:@"" lowercaseString];
 			if ([self extensionIsSupported:ext]) {
 				[tempFiles addObject:file];
 			}
@@ -1224,21 +1315,37 @@ static __strong UINavigationController *navCon;
 	__strong UIBarButtonItem * kBTRight;
 	__strong UIBarButtonItem* kBTClose = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemStop target:self action:@selector(closeMImport)];
 	if(self.editRow) {
-		kBTRight = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"] localizedStringForKey:@"IMPORT_SELECTED" value:@"Import Selected" table:@"PhotoLibrary"] style:UIBarButtonItemStylePlain target:self action:@selector(selectRow)];
-		__strong UIBarButtonItem *kCancel = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"] localizedStringForKey:@"Cancel" value:@"Cancel" table:nil] style:UIBarButtonItemStylePlain target:self action:@selector(cancelSelectRow)];
+		kBTRight = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT_SELECTED" value:@"Import Selected" table:@"PhotoLibrary"] style:UIBarButtonItemStylePlain target:self action:@selector(selectRow)];
+		__strong UIBarButtonItem *kCancel = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Cancel" value:@"Cancel" table:nil] style:UIBarButtonItemStylePlain target:self action:@selector(cancelSelectRow)];
+		__strong UIBarButtonItem *kSelectAll = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Select All" value:@"Select All" table:nil] style:UIBarButtonItemStylePlain target:self action:@selector(selectAllRow)];
 		kBTRight.tag = 4;
 		kCancel.tag = 4;
 		if([self.selectedRows count] > 0) {
-			self.navigationItem.rightBarButtonItems = @[kBTClose, kBTRight, kCancel];
+			self.navigationItem.rightBarButtonItems = @[kBTClose, kCancel, kBTRight, ];
 		} else {
-			self.navigationItem.rightBarButtonItems = @[kBTClose, kCancel];
+			self.navigationItem.rightBarButtonItems = @[kBTClose, kCancel, kSelectAll, ];
 		}		
 	} else {
-		kBTRight = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"] localizedStringForKey:@"Select" value:@"Select" table:nil] style:UIBarButtonItemStylePlain target:self action:@selector(selectRow)];
+		kBTRight = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Select" value:@"Select" table:nil] style:UIBarButtonItemStylePlain target:self action:@selector(selectRow)];
 		kBTRight.tag = 4;
 		self.navigationItem.rightBarButtonItems = @[kBTClose, kBTRight];
 	}
 	
+}
+- (void)selectAllRow
+{
+	self.selectedRows = [NSMutableArray array];
+	for(int i = 0; i <= [self tableView:nil numberOfRowsInSection:0]; i++) {
+		NSIndexPath *indexPath = [NSIndexPath indexPathForRow:i inSection:0];
+		UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+		if(cell) {
+			if(cell.accessoryType != UITableViewCellAccessoryDisclosureIndicator) {
+				[self.selectedRows addObject:@(indexPath.row)];
+			}
+		}
+	}
+	[self Refresh];
+	[self setRightButton];
 }
 - (void)viewDidLoad
 {
@@ -1251,9 +1358,6 @@ static __strong UINavigationController *navCon;
 	
 	//[self.navigationController.navigationBar setBarTintColor:[UIColor colorWithRed:0.86 green:0.91 blue:1.00 alpha:1.0]];
 	//[self.navigationController.navigationBar setTranslucent:NO];
-	
-	
-	
 }
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
@@ -1382,18 +1486,17 @@ static __strong UINavigationController *navCon;
 	static __strong NSString* kMB = @"%.1f MB";
 	cell.detailTextLabel.text = isdir ? nil : [NSString stringWithFormat:size>=1048576?kMB:kKB, size>=1048576?(float)size/1048576:(float)size/1024];
 	if (!isdir) {
-		NSString *ext = [[file pathExtension] lowercaseString];
+		NSString *ext = [[file pathExtension]?:@"" lowercaseString];
 		if ([self extensionIsSupported:ext]) {
-			static __strong UIImage* kImageAudio;
-			if(!kImageAudio) {
-				kImageAudio = [[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"] pathForResource:@"icon" ofType:@"png"]];
-				if (kImageAudio && [kImageAudio respondsToSelector:@selector(imageWithRenderingMode:)]) {
-					kImageAudio = [[kImageAudio imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] copy];
+			if(!self.kImageAudio) {
+				self.kImageAudio = [[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"]?:[NSBundle mainBundle] pathForResource:@"icon" ofType:@"png"]];
+				if (self.kImageAudio && [self.kImageAudio respondsToSelector:@selector(imageWithRenderingMode:)]) {
+					self.kImageAudio = [[self.kImageAudio imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] copy];
 				} else {
-					kImageAudio = [kImageAudio copy];
+					self.kImageAudio = [self.kImageAudio copy];
 				}
 			}
-			cell.imageView.image = kImageAudio;
+			cell.imageView.image = self.kImageAudio;
 	    } else {
 			//static __strong UIImage* kImageInstall = [[UIImage imageWithImage:[UIImage imageNamed:@"install.png"]] copy];
 			cell.imageView.image = nil;
@@ -1401,7 +1504,7 @@ static __strong UINavigationController *navCon;
 	} else {
 		static __strong UIImage* kImageDir;
 		if(!kImageDir) {
-			kImageDir = [[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"] pathForResource:@"dir" ofType:@"png"]];
+			kImageDir = [[UIImage alloc] initWithContentsOfFile:[[NSBundle bundleWithPath:@"/Library/PreferenceBundles/MImport.bundle"]?:[NSBundle mainBundle] pathForResource:@"dir" ofType:@"png"]];
 			if (kImageDir && [kImageDir respondsToSelector:@selector(imageWithRenderingMode:)]) {
 				kImageDir = [[kImageDir imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] copy];
 			} else {
@@ -1415,6 +1518,7 @@ static __strong UINavigationController *navCon;
 }
 -(void)handleLongPress:(UILongPressGestureRecognizer *)gestureRecognizer
 {
+	@try{
     CGPoint p = [gestureRecognizer locationInView:self.tableView];
     NSIndexPath *indexPath = [self.tableView indexPathForRowAtPoint:p];
     if (indexPath != nil && gestureRecognizer.state == UIGestureRecognizerStateBegan) {
@@ -1427,7 +1531,7 @@ static __strong UINavigationController *navCon;
 			UIActionSheet *popup = [[UIActionSheet alloc] initWithTitle:file delegate:[MImportTapMenu sharedInstance] cancelButtonTitle:nil destructiveButtonTitle:nil otherButtonTitles:nil];
 			[popup addButtonWithTitle:@"Set as Favorite 1"];
 			[popup addButtonWithTitle:@"Set as Favorite 2"];
-			[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"] localizedStringForKey:@"Cancel" value:@"Cancel" table:nil]];
+			[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Cancel" value:@"Cancel" table:nil]];
 			[popup setCancelButtonIndex:[popup numberOfButtons] - 1];
 			if (isDeviceIPad) {
 				[popup showFromBarButtonItem:[[self navigationItem] rightBarButtonItem] animated:YES];
@@ -1436,6 +1540,8 @@ static __strong UINavigationController *navCon;
 			}
 		}
     }
+	} @catch (NSException * e) {
+	}
 }
 - (NSIndexPath *)tableView:(UITableView *)tableView willSelectRowAtIndexPath:(NSIndexPath *)indexPath 
 {
@@ -1456,10 +1562,9 @@ static __strong UINavigationController *navCon;
 		}
     } else {
 		UIActionSheet *popup = [[UIActionSheet alloc] initWithTitle:file delegate:self cancelButtonTitle:nil destructiveButtonTitle:nil otherButtonTitles:nil];
-		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"]];
-		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"] localizedStringForKey:@"Edit" value:@"Edit" table:nil]];
-		[popup setDestructiveButtonIndex:[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"] localizedStringForKey:@"Delete" value:@"Delete" table:nil]]];
-		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"] localizedStringForKey:@"Cancel" value:@"Cancel" table:nil]];
+		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"]];
+		[popup setDestructiveButtonIndex:[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Delete" value:@"Delete" table:nil]]];
+		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Cancel" value:@"Cancel" table:nil]];
 		[popup setCancelButtonIndex:[popup numberOfButtons] - 1];
 		popup.tag = indexPath.row;
 		if (isDeviceIPad) {
@@ -1477,7 +1582,7 @@ static __strong UINavigationController *navCon;
 	if (button == [alert cancelButtonIndex]) {
 		return;
 	}
-	if  (button == 2) {
+	if  (button == 1) {
 		CFOptionFlags result;
 			CFUserNotificationDisplayAlert(
 			0, //timeout
@@ -1511,8 +1616,8 @@ static __strong UINavigationController *navCon;
 				}				
 			}
 		return;
-	} else if  (button == 1) {
-		NSString *ext = [[file pathExtension] lowercaseString];
+	} else if  (button == 0) {
+		NSString *ext = [[file pathExtension]?:@"" lowercaseString];
 		if ([self extensionIsSupported:ext]) {
 			NSString *Url = [[self pathForFile:file] copy];
 			@try {	
@@ -1521,20 +1626,7 @@ static __strong UINavigationController *navCon;
 			}
 		} else {
 			UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
-						    message:@"Unsupported file." 
-						    delegate:self
-						    cancelButtonTitle:@"OK" 
-						    otherButtonTitles:nil];
-			[alert show];
-		}
-		return;
-	} else if  (button == 0) {
-		NSString *ext = [[file pathExtension] lowercaseString];
-		if ([self extensionIsSupported:ext]) {
-			[self importFile:[[self pathForFile:file] copy] withMetadata:nil];
-		} else {
-			UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
-						    message:@"Unsupported file. Supportted files is: mp3, m4a" 
+						    message:[NSString stringWithFormat:@"%@ (%@)", [[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Doesn't support the file type" value:@"Doesn't support the file type" table:nil], ext]
 						    delegate:self
 						    cancelButtonTitle:@"OK" 
 						    otherButtonTitles:nil];
@@ -1597,6 +1689,7 @@ static __strong UINavigationController *navCon;
 {
 	id ret = %orig;
 	if(ret) {
+		@try{
 		if([ret isEqualToString:@"music"] && [[self lastPathComponent] isEqualToString:@"mimport"]) {
 			if(NSString* query = [self query]) {
 				NSMutableDictionary *queryStringDictionary = [[NSMutableDictionary alloc] init];
@@ -1616,6 +1709,8 @@ static __strong UINavigationController *navCon;
 				}
 			}
 			ret = @"https";
+		}
+		} @catch (NSException * e) {
 		}
 	}	
 	return ret;

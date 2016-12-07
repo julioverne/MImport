@@ -42,12 +42,14 @@ extern char *__progname;
 	NSMutableArray *_selectedRows;
 	BOOL _editRow;
 	NSDictionary *_contentDir;
+	UIImage *_kImageAudio;
 }
 @property (strong) NSString *path;
 @property (strong) NSArray *files;
 @property (strong) NSMutableArray *selectedRows;
 @property (assign) BOOL editRow;
 @property (strong) NSDictionary *contentDir;
+@property (strong) UIImage *kImageAudio;
 
 - (void)importFile:(NSString*)file withMetadata:(NSDictionary*)metadataDic;
 @end
