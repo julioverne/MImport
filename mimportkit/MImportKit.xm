@@ -1,24 +1,13 @@
 #import "MImportKit.h"
 
-@interface _UIDocumentActivityItemProvider : NSObject
-@property (nonatomic, copy) _UIDocumentActivityItemProvider *asset;
-- (id)item;
-- (id)mainFileURL;
-- (id)mediaPath; //NSString
-@end
-@interface _UIOpenWithAppActivity : UIActivity
-@property (assign) BOOL isMImport;
-- (id)initWithApplicationIdentifier:(id)arg1 documentInteractionController:(id)arg2;
-@end
-@interface UIActivityViewController (gg)
-@property (nonatomic, copy) NSArray *activityItems;
-@end
+Class UIOpenWithAppActivityClassName;
 
-%hook _UIOpenWithAppActivity
+%group MImportKit
+%hook UIOpenWithAppActivityClass
 %property (assign) BOOL isMImport;
 - (id)activityTitle
 {
-	if(self.isMImport){
+	if(((UIOpenWithAppActivityClass*)self).isMImport){
 		return @"Import with MImport";
 	} else {
 		return %orig;
@@ -26,7 +15,7 @@
 }
 - (BOOL)_canBeExcludedByActivityViewController:(id)arg1
 {
-	if(self.isMImport){
+	if(((UIOpenWithAppActivityClass*)self).isMImport){
 		return NO;
 	} else {
 		return %orig;
@@ -34,20 +23,19 @@
 }
 - (BOOL)canPerformWithActivityItems:(id)arg1
 {
-	if(self.isMImport){
+	if(((UIOpenWithAppActivityClass*)self).isMImport){
 		return YES;
 	} else {
 		return %orig;
 	}
 }
 %end
-
 %hook UIActivityViewController
-- (void)_performActivity:(_UIOpenWithAppActivity *)arg1
+- (void)_performActivity:(UIOpenWithAppActivityClass *)arg1
 {
 	if(arg1) {
 		@try{
-		if([arg1 isKindOfClass:%c(_UIOpenWithAppActivity)]) {
+		if([arg1 isKindOfClass:UIOpenWithAppActivityClassName]) {
 			if(arg1.isMImport) {
 				NSURL* pathFileURL = nil;
 				if([self respondsToSelector:@selector(activityItems)]) {
@@ -105,20 +93,31 @@
 - (id)initWithActivityItems:(id)arg1 applicationActivities:(id)arg2
 {
 	if(arg2) {
-		@try{
-		if([arg2 isKindOfClass:[NSArray class]]) {
-			NSMutableArray* mutRet = [arg2 mutableCopy];
-			_UIOpenWithAppActivity * actMimport = [[%c(_UIOpenWithAppActivity) alloc] initWithApplicationIdentifier:@"com.apple.Music" documentInteractionController:nil];
-			actMimport.isMImport = YES;
-			[mutRet insertObject:actMimport atIndex:0];
-			arg2 = mutRet;
-		}
+		@try {
+			if([arg2 isKindOfClass:[NSArray class]]) {
+				NSMutableArray* mutRet = [arg2 mutableCopy];
+				UIOpenWithAppActivityClass * actMimport = nil;
+				if([[[UIOpenWithAppActivityClassName alloc] init] respondsToSelector:@selector(initWithApplicationIdentifier:documentInteractionController:)]) {
+					actMimport = [[UIOpenWithAppActivityClassName alloc] initWithApplicationIdentifier:@"com.apple.Music" documentInteractionController:nil];
+				} else {
+					actMimport = [[UIOpenWithAppActivityClassName alloc] initWithApplicationIdentifier:@"com.apple.Music" documentInteractionController:nil appIsOwner:YES];
+				}
+				if(actMimport) {
+					actMimport.isMImport = YES;
+					[mutRet insertObject:actMimport atIndex:0];
+					arg2 = mutRet;
+				}
+			}
 		} @catch (NSException * e) {
 		}
-	}	
-	id ret = %orig;
-	return ret;
+	}
+	return %orig(arg1, arg2);
 }
 %end
+%end
 
-
+%ctor
+{
+	UIOpenWithAppActivityClassName = objc_getClass("_UIOpenWithAppActivity")?:objc_getClass("_UIDocumentInteractionControllerOpenWithAppActivity");
+	%init(MImportKit, UIOpenWithAppActivityClass = UIOpenWithAppActivityClassName);
+}

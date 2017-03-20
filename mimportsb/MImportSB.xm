@@ -1,10 +1,10 @@
 #import <AudioToolbox/AudioToolbox.h>
 
-#import "MImportCenter.h"
+#import "MImportSB.h"
 
-#import "MImportWebServer/MImportWebServer.h"
-#import "MImportWebServer/MImportWebServerFileResponse.h"
-#import "MImportWebServer/MImportWebServerDataResponse.h"
+#import "../libMImportWebServer/MImportWebServer.h"
+#import "../libMImportWebServer/MImportWebServerFileResponse.h"
+#import "../libMImportWebServer/MImportWebServerDataResponse.h"
 
 #define PORT_SERVER 4194
 #define kMaxIdleTimeSeconds 1
@@ -22,11 +22,7 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 - (void)applicationDidFinishLaunching:(id)application
 {
     %orig;
-	
 	unlink(mimport_running);
-	if(!_webServer) {
-		[self mimportAllocServer];
-	}
 	if(!timerCheckMImport) {
 		timerCheckMImport = [NSTimer scheduledTimerWithTimeInterval:kMaxIdleTimeSeconds target:self selector:@selector(mimportChecker) userInfo:nil repeats:YES];
 	}
@@ -37,37 +33,40 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 	if(_webServer) {
 		return;
 	}
-	_webServer = [[MImportWebServer alloc] init];
-	[_webServer addDefaultHandlerForMethod:@"GET" requestClass:[MImportWebServerRequest class] processBlock:^MImportWebServerResponse *(MImportWebServerRequest* request) {
-		return [MImportWebServerFileResponse responseWithFile:[[request.URL path] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding] byteRange:request.byteRange];
+	dlopen("/usr/lib/libMImportWebServer.dylib", RTLD_LAZY | RTLD_GLOBAL);
+	_webServer = [[objc_getClass("MImportWebServer") alloc] init];
+	[_webServer addDefaultHandlerForMethod:@"GET" requestClass:objc_getClass("MImportWebServerRequest") processBlock:^MImportWebServerResponse *(MImportWebServerRequest* request) {
+		return [objc_getClass("MImportWebServerFileResponse") responseWithFile:[[request.URL path] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding] byteRange:request.byteRange];
 	}];
-	[_webServer addDefaultHandlerForMethod:@"POST" requestClass:[MImportWebServerRequest class] processBlock:^MImportWebServerResponse *(MImportWebServerRequest* request) {
+	[_webServer addDefaultHandlerForMethod:@"POST" requestClass:objc_getClass("MImportWebServerRequest") processBlock:^MImportWebServerResponse *(MImportWebServerRequest* request) {
 		NSString* filePath = [[request.URL path] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
 		AudioFileID fileID = nil;
-		AudioFileOpenURL((__bridge CFURLRef)[NSURL fileURLWithPath:filePath], kAudioFileReadPermission, 0, &fileID);
 		CFDictionaryRef piDict = nil;
-		UInt32 piDataSize   = sizeof(piDict);  
-		AudioFileGetProperty( fileID, kAudioFilePropertyInfoDictionary, &piDataSize, &piDict);
+		AudioFileOpenURL((__bridge CFURLRef)[NSURL fileURLWithPath:filePath], kAudioFileReadPermission, 0, &fileID);
+		if(fileID) {
+			UInt32 piDataSize   = sizeof(piDict);  
+			AudioFileGetProperty( fileID, kAudioFilePropertyInfoDictionary, &piDataSize, &piDict);
+			AudioFileClose(fileID);
+		}		
 		if(!piDict) {
 			piDict = (__bridge CFDictionaryRef)[NSDictionary dictionary];
 		}
-		AudioFileClose(fileID);		
-		return [MImportWebServerDataResponse responseWithJSONObject:(__bridge NSDictionary*)piDict];
+		return [objc_getClass("MImportWebServerDataResponse") responseWithJSONObject:(__bridge NSDictionary*)piDict];
 	}];
 }
 %new
 - (void)mimportChecker
 {
 	@autoreleasepool {
-		if(!_webServer) {
-			[self mimportAllocServer];
-		}
-		if (access(mimport_running, F_OK) == 0) {
-			if(!_webServer.running) {
+		if(access(mimport_running, F_OK) == 0) {
+			if(!_webServer) {
+				[self mimportAllocServer];
+			}
+			if(_webServer != nil && !_webServer.running) {
 				[_webServer startWithPort:PORT_SERVER bonjourName:nil];
 			}			
 		} else {
-			if(_webServer.running) {
+			if(_webServer != nil && _webServer.running) {
 				[_webServer stop];
 			}
 		}
@@ -76,14 +75,12 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 %end
 
 
-
 static void lockScreenState(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo)
 {
 	@autoreleasepool {
 		unlink(mimport_running);
 	}
 }
-
 
 __attribute__((constructor)) static void initialize_mimportCenter()
 {

@@ -1,7 +1,7 @@
 #import <vector>
 #import <notify.h>
 #import <Social/Social.h>
-#import "prefs.h"
+#import <prefs.h>
 
 #define PLIST_PATH_Settings "/var/mobile/Library/Preferences/com.julioverne.mimport.plist"
 

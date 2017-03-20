@@ -28,6 +28,7 @@ static __strong NSString* kAlbum = @"album";
 static __strong NSString* kArtist = @"artist";
 static __strong NSString* kGenre = @"genre";
 static __strong NSString* kComposer = @"composer";
+static __strong NSString* kLyrics = @"lyrics";
 static __strong NSString* kYear = @"year";
 static __strong NSString* kTrackNumber = @"trackNumber";
 static __strong NSString* kTrackCount = @"trackCount";
@@ -35,7 +36,7 @@ static __strong NSString* kExplicit = @"explicit";
 static __strong NSString* kArtwork = @"artwork";
 static __strong NSString* kKindType = @"kind";
 static __strong NSString* kDuration = @"approximate duration in seconds";
-static __strong NSString* kUrlServer = [NSString stringWithFormat:[@"http://%@:%i/" substringToIndex:12], @"localhost", PORT_SERVER];
+static __strong NSString* kUrlServer = [NSString stringWithFormat:[@"http://%@:%i/" substringToIndex:12], @"127.0.0.1", PORT_SERVER];
 
 static __strong NSString* receivedURLMImport;
 static BOOL needShowAgainMImportURL;
@@ -99,9 +100,9 @@ NSString* urlEncodeUsingEncoding(NSString* encoding)
 
 NSDictionary* getMusicInfo(NSDictionary* item)
 {
+	NSMutableDictionary* retInfo = [NSMutableDictionary mutableCopy];
 	if(item) {
 		@try {
-			
 			NSString *artist, *album, *album_artist, *track, *duration;
 			artist = [[item objectForKey:kArtist]?:[NSString string] copy];
 			album = [[item objectForKey:kAlbum]?:[NSString string] copy];
@@ -117,19 +118,31 @@ NSDictionary* getMusicInfo(NSDictionary* item)
 			[formatter setDateFormat:@"yyyMMdd"];
 			NSString* dateToday = [NSString stringWithFormat:@"%d", [[formatter stringFromDate:[NSDate date]] intValue]];
 			NSURL* UrlString = [NSURL URLWithString:[prepareString stringByAppendingString:[NSString stringWithFormat:sigFormat, urlEncodeUsingEncoding(hmacSHA1BinBase64([prepareString stringByAppendingString:dateToday], @"secretsuper"))]]];
-			NSDictionary* retLyric = nil;
 			if(UrlString != nil) {
 				NSError *error = nil;
 				NSHTTPURLResponse *responseCode = nil;
 				NSMutableURLRequest *Request = [[NSMutableURLRequest alloc]	initWithURL:UrlString cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:15.0];
 				[Request setHTTPMethod:@"GET"];
-				[Request setValue:@"default" forHTTPHeaderField:@"Cookie"];
+				[Request setValue:@"default; AWSELB=unknown" forHTTPHeaderField:@"Cookie"];
 				[Request setValue:@"default" forHTTPHeaderField:@"x-mxm-endpoint"];
 				[Request setValue:@"Musixmatch/6.0.1 (iPhone; iOS 9.2.1; Scale/2.00)" forHTTPHeaderField:@"User-Agent"];
 				NSData *receivedData = [NSURLConnection sendSynchronousRequest:Request returningResponse:&responseCode error:&error];
 				if(receivedData && !error) {
 					NSDictionary *JSON = [NSJSONSerialization JSONObjectWithData:receivedData?:[NSData data] options:NSJSONReadingMutableContainers error:nil];
-					retLyric = [[[[[[[JSON objectForKey:@"message"] objectForKey:@"body"] objectForKey:@"macro_calls"] objectForKey:@"matcher.track.get"] objectForKey:@"message"] objectForKey:@"body"] objectForKey:@"track"];
+					@try {
+						NSDictionary* trackInfo = [[[[[[[JSON objectForKey:@"message"] objectForKey:@"body"] objectForKey:@"macro_calls"] objectForKey:@"matcher.track.get"] objectForKey:@"message"] objectForKey:@"body"] objectForKey:@"track"];
+						retInfo = [trackInfo mutableCopy];
+					} @catch (NSException * e) {
+						
+					}
+					@try {
+						NSDictionary* lyricsInfo = [[[[[[[JSON objectForKey:@"message"] objectForKey:@"body"] objectForKey:@"macro_calls"] objectForKey:@"track.lyrics.get"] objectForKey:@"message"] objectForKey:@"body"] objectForKey:@"lyrics"];
+						if(lyricsInfo[@"lyrics_body"] != nil) {
+							retInfo[@"lyrics"] = lyricsInfo[@"lyrics_body"];
+						}
+					} @catch (NSException * e) {
+						
+					}
 				} else if (error) {
 					UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
 						    message:[error description]
@@ -139,13 +152,10 @@ NSDictionary* getMusicInfo(NSDictionary* item)
 					[alert show];
 				}
 			}
-			if(retLyric) {
-				return retLyric;
-			}			
 		} @catch (NSException * e) {
 		}
 	}
-	return [NSDictionary dictionary];
+	return retInfo;
 }
 
 void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
@@ -200,22 +210,22 @@ void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
     for (NSString *format in [asset availableMetadataFormats]) {
         for (AVMetadataItem *item in [asset metadataForFormat:format]) {
             if ([[item commonKey] isEqualToString:kTitle]) {
-				[metaDataParse setObject:[item value] forKey:kTitle];
+				metaDataParse[kTitle] = [item value];
             }
             if ([[item commonKey] isEqualToString:kArtist]) {
-                [metaDataParse setObject:[item value] forKey:kArtist];
+				metaDataParse[kArtist] = [item value];
             }
             if ([[item commonKey] isEqualToString:@"albumName"]) {
-                [metaDataParse setObject:[item value] forKey:@"albumName"];
+				metaDataParse[@"albumName"] = [item value];
             }
 			if ([[item commonKey] isEqualToString:@"copyrights"]) {
-                [metaDataParse setObject:[item value] forKey:@"copyright"];
+				metaDataParse[@"copyright"] = [item value];
             }
             if ([[item commonKey] isEqualToString:kArtwork]) {
                 if ([[item value] isKindOfClass:[NSDictionary class]]) {
-					[metaDataParse setObject:[(NSDictionary *)[item value] objectForKey:@"data"] forKey:kArtwork];
+					metaDataParse[kArtwork] = [item value][@"data"];
                 } else {
-					[metaDataParse setObject:[item value] forKey:kArtwork];
+					metaDataParse[kArtwork] = [item value];
                 }
 			}
         }
@@ -259,7 +269,7 @@ void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
         [UIImageJPEGRepresentation(image, 1.0) writeToFile:ap atomically:YES];
     }
 	
-	NSString __strong*title, __strong*album, __strong*artist, __strong*copyright, __strong*genre, __strong*composer;
+	NSString __strong*title, __strong*album, __strong*artist, __strong*copyright, __strong*genre, __strong*composer, __strong*lyric;
 	
 	title     = [mediaInfo objectForKey:kTitle]?:[metaDataParse objectForKey:kTitle]?:[(__bridge NSDictionary *)piDict objectForKey:kTitle]?:[[mediaPath lastPathComponent] stringByDeletingPathExtension]?:@"Unknown Title";
 	album     = [mediaInfo objectForKey:kAlbum]?:[metaDataParse objectForKey:@"albumName"]?:[(__bridge NSDictionary *)piDict objectForKey:kAlbum]?:@"Unknown Album";
@@ -267,7 +277,7 @@ void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
 	copyright = [metaDataParse objectForKey:@"copyright"]?:[(__bridge NSDictionary *)piDict objectForKey:@"copyright"]?:@"\u2117 MImport.";
 	genre     = [mediaInfo objectForKey:kGenre]?:[(__bridge NSDictionary *)piDict objectForKey:kGenre]?:@"";
 	composer  = [mediaInfo objectForKey:kComposer]?:[(__bridge NSDictionary *)piDict objectForKey:kComposer]?:@"";
-	
+	lyric     = [mediaInfo objectForKey:kLyrics]?:@"";
 	
 	int durationSecond = 0;
 	NSDateComponents *components = [[NSCalendar currentCalendar] components:NSCalendarUnitYear fromDate:[NSDate date]];
@@ -378,6 +388,8 @@ void MImport_import(NSString *mediaPath, NSDictionary *mediaInfo)
 	        @"copyright": copyright,
 			@"description": copyright,
 			@"longDescription": copyright,
+			
+			//@"lyrics": lyric,
 			
 	         //@"discCount": @(1),
 	         //@"discNumber": @(1),
@@ -693,19 +705,19 @@ static __strong UINavigationController *navCon;
 		for (NSString *format in [asset availableMetadataFormats]) {
 			for (AVMetadataItem *item in [asset metadataForFormat:format]) {
 				if ([[item commonKey] isEqualToString:kTitle]) {
-					[metaDataParse setObject:[item value] forKey:kTitle];
+					metaDataParse[kTitle] = [item value];
 				}
 				if ([[item commonKey] isEqualToString:kArtist]) {
-					[metaDataParse setObject:[item value] forKey:kArtist];
+					metaDataParse[kArtist] = [item value];
 				}
 				if ([[item commonKey] isEqualToString:@"albumName"]) {
-					[metaDataParse setObject:[item value] forKey:@"albumName"];
+					metaDataParse[@"albumName"] = [item value];
 				}
 				if ([[item commonKey] isEqualToString:kArtwork]) {
 					if ([[item value] isKindOfClass:[NSDictionary class]]) {
-						[metaDataParse setObject:[(NSDictionary *)[item value] objectForKey:@"data"] forKey:kArtwork];
+						metaDataParse[kArtwork] = [item value][@"data"];
 					} else {
-						[metaDataParse setObject:[item value] forKey:kArtwork];
+						metaDataParse[kArtwork] = [item value];
 					}
 				}
 			}
@@ -801,20 +813,19 @@ static __strong UINavigationController *navCon;
 		} else if ([ext isEqualToString:@"m4r"]) {
 			kindType = 4;
 		}
-		[self.tags setObject:title forKey:kSearchTitle];
-		[self.tags setObject:title forKey:kTitle];
-		[self.tags setObject:album forKey:kAlbum];
-		[self.tags setObject:artist forKey:kArtist];
-		[self.tags setObject:genre forKey:kGenre];
-		[self.tags setObject:composer forKey:kComposer];
-		[self.tags setObject:@(year) forKey:kYear];
-		[self.tags setObject:@(trackNumber) forKey:kTrackNumber];
-		[self.tags setObject:@(durationSecond) forKey:kDuration];
-		[self.tags setObject:@(trackCount) forKey:kTrackCount];
-		[self.tags setObject:@(isExplicit) forKey:kExplicit];
-		[self.tags setObject:@(kindType) forKey:kKindType];
+		self.tags[kSearchTitle] = title;
+		self.tags[kTitle] = title;
+		self.tags[kAlbum] = album;
+		self.tags[kArtist] = artist;
+		self.tags[kGenre] = genre;
+		self.tags[kComposer] = @(year);
+		self.tags[kYear] = @(trackNumber);
+		self.tags[kDuration] = @(durationSecond);
+		self.tags[kTrackCount] = @(trackCount);
+		self.tags[kExplicit] = @(isExplicit);
+		self.tags[kKindType] = @(kindType);
 		if(imageData != nil) {
-			[self.tags setObject:imageData forKey:kArtwork];
+			self.tags[kArtwork] = imageData;
 		}	
 		} @catch (NSException * e) {
 		}
@@ -1036,6 +1047,15 @@ static __strong UINavigationController *navCon;
 											  edit:Nil];
 		[spec setProperty:kTrackCount forKey:@"key"];
         [specifiers addObject:spec];		
+		spec = [PSSpecifier preferenceSpecifierNamed:@"Lyric"
+                                              target:self
+											  set:@selector(setPreferenceValue:specifier:)
+											  get:@selector(readPreferenceValue:)
+                                              detail:Nil
+											  cell:PSEditTextCell
+											  edit:Nil];
+		[spec setProperty:kLyrics forKey:@"key"];
+        //[specifiers addObject:spec];
 		
 		spec = [PSSpecifier preferenceSpecifierNamed:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/MediaPlayer.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"EXPLICIT_CONTENT_NOT_ALLOWED_TITLE" value:@"Explicit" table:@"MediaPlayer"]
                                                   target:self
@@ -1062,77 +1082,75 @@ static __strong UINavigationController *navCon;
 	[hud setText:@"Fetching..."];
 	[hud showInView:self.view];
  	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-		@try{
-		NSDictionary* responceInfo = getMusicInfo(@{
-			kTitle:[self.tags objectForKey:kSearchTitle]?[[self.tags objectForKey:kSearchTitle] isEqualToString:@"Unknown Title"]?@"":[self.tags objectForKey:kSearchTitle]:@"",
-			kAlbum:[self.tags objectForKey:kAlbum]?[[self.tags objectForKey:kAlbum] isEqualToString:@"Unknown Album"]?@"":[self.tags objectForKey:kAlbum]:@"",
-			kArtist:[self.tags objectForKey:kArtist]?[[self.tags objectForKey:kArtist] isEqualToString:@"Unknown Artist"]?@"":[self.tags objectForKey:kArtist]:@"",
-			kDuration:[self.tags objectForKey:kDuration]?:@"",
-		});
-		//NSLog(@"*** responceInfo: %@", responceInfo);
+		@try {
+			NSDictionary* responceInfo = getMusicInfo(@{
+				kTitle:[self.tags objectForKey:kSearchTitle]?[[self.tags objectForKey:kSearchTitle] isEqualToString:@"Unknown Title"]?@"":[self.tags objectForKey:kSearchTitle]:@"",
+				kAlbum:[self.tags objectForKey:kAlbum]?[[self.tags objectForKey:kAlbum] isEqualToString:@"Unknown Album"]?@"":[self.tags objectForKey:kAlbum]:@"",
+				kArtist:[self.tags objectForKey:kArtist]?[[self.tags objectForKey:kArtist] isEqualToString:@"Unknown Artist"]?@"":[self.tags objectForKey:kArtist]:@"",
+				kDuration:[self.tags objectForKey:kDuration]?:@"",
+			});
+			//NSLog(@"*** responceInfo: %@", responceInfo);
+			
+			NSString* artworkURL = nil;
+			if(NSString* artWork = responceInfo[@"album_coverart_800x800"]) {
+				if([artWork length] > 0) {
+					artworkURL = artWork;
+				}
+			} else if(NSString* artWork = responceInfo[@"album_coverart_500x500"]) {
+				if([artWork length] > 0) {
+					artworkURL = artWork;
+				}
+			} else if(NSString* artWork = responceInfo[@"album_coverart_350x350"]) {
+				if([artWork length] > 0) {
+					artworkURL = artWork;
+				}
+			} else if(NSString* artWork = responceInfo[@"album_coverart_100x100"]) {
+				if([artWork length] > 0) {
+					artworkURL = artWork;
+				}
+			}
+			if(artworkURL) {
+				if ([artworkURL rangeOfString:@"nocover.png"].location != NSNotFound) {
+					artworkURL = nil;
+				}
+				NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:artworkURL]];
+				request.cachePolicy = NSURLRequestReloadIgnoringLocalAndRemoteCacheData;
+				NSError* error = nil;
+				NSData* imageData = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error];
+				if(imageData && !error) {
+					UIImage *image = [UIImage imageWithData:imageData];
+					self.tags[kArtwork] = UIImageJPEGRepresentation(image, 1.0);
+				}
+			}
 
-		NSString* artworkURL = nil;
-		if(NSString* artWork = [responceInfo objectForKey:@"album_coverart_800x800"]) {
-			if([artWork length] > 0) {
-				artworkURL = artWork;
+			if(NSString* track_name = responceInfo[@"track_name"]) {
+				if([track_name length] > 0) {
+					self.tags[kTitle] = track_name;
+				}
 			}
-		} else if(NSString* artWork = [responceInfo objectForKey:@"album_coverart_500x500"]) {
-			if([artWork length] > 0) {
-				artworkURL = artWork;
+			if(NSString* album_name = responceInfo[@"album_name"]) {
+				if([album_name length] > 0) {
+					self.tags[kAlbum] = album_name;
+				}
 			}
-		} else if(NSString* artWork = [responceInfo objectForKey:@"album_coverart_350x350"]) {
-			if([artWork length] > 0) {
-				artworkURL = artWork;
+			if(NSString* artist_name = responceInfo[@"artist_name"]) {
+				if([artist_name length] > 0) {
+					self.tags[kArtist] = artist_name;
+				}
 			}
-		} else if(NSString* artWork = [responceInfo objectForKey:@"album_coverart_100x100"]) {
-			if([artWork length] > 0) {
-				artworkURL = artWork;
+			if(id explicitRes = responceInfo[@"explicit"]) {
+				self.tags[kExplicit] = @([explicitRes intValue]);
 			}
-		}
-		if(artworkURL) {
-			if ([artworkURL rangeOfString:@"nocover.png"].location != NSNotFound) {
-				artworkURL = nil;
+			if(id Lyric = [responceInfo objectForKey:kLyrics]) {
+				self.tags[kLyrics] = Lyric;
 			}
-		}
-		if(artworkURL) {
-			NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:artworkURL]];
-			request.cachePolicy = NSURLRequestReloadIgnoringLocalAndRemoteCacheData;
-			NSError* error = nil;
-			NSData* imageData = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error];
-			if(imageData && !error) {
-				UIImage *image = [UIImage imageWithData:imageData];
-				[self.tags setObject:UIImageJPEGRepresentation(image, 1.0) forKey:kArtwork];
-			}
-		}
-		if(NSString* track_name = [responceInfo objectForKey:@"track_name"]) {
-			if([track_name length] > 0) {
-				[self.tags setObject:track_name forKey:kTitle];
-			}
-		}
-		if(NSString* album_name = [responceInfo objectForKey:@"album_name"]) {
-			if([album_name length] > 0) {
-				[self.tags setObject:album_name forKey:kAlbum];
-			}
-		}
-		if(NSString* artist_name = [responceInfo objectForKey:@"artist_name"]) {
-			if([artist_name length] > 0) {
-				[self.tags setObject:artist_name forKey:kArtist];
-			}
-		}
-		if(NSString* artist_name = [responceInfo objectForKey:@"artist_name"]) {
-			if([artist_name length] > 0) {
-				[self.tags setObject:artist_name forKey:kArtist];
-			}
-		}
-		if(id explicitRes = [responceInfo objectForKey:@"explicit"]) {
-			[self.tags setObject:@([explicitRes intValue]) forKey:kExplicit];
+			
+		} @catch (NSException * e) {
 		}
 		dispatch_async(dispatch_get_main_queue(), ^(void) {
 			[hud hide];
 			[self reloadSpecifiers];
 		});
-		} @catch (NSException * e) {
-		}
 	});
 } 
 - (void)openLibrary
@@ -1145,8 +1163,8 @@ static __strong UINavigationController *navCon;
 }
 - (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
 {
-    UIImage *image = [info objectForKey:UIImagePickerControllerEditedImage];
-    [self.tags setObject:UIImageJPEGRepresentation(image, 1.0) forKey:kArtwork];
+    UIImage *image = info[UIImagePickerControllerEditedImage];
+	self.tags[kArtwork] = UIImageJPEGRepresentation(image, 1.0);
     [self dismissModalViewControllerAnimated:YES];
 	[self reloadSpecifiers];
 }
@@ -1177,7 +1195,7 @@ static __strong UINavigationController *navCon;
 }
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier
 {
-	[self.tags setObject:value forKey:[specifier identifier]];
+	self.tags[[specifier identifier]] = value;
 }
 - (id)readPreferenceValue:(PSSpecifier*)specifier
 {
@@ -1698,7 +1716,7 @@ static __strong UINavigationController *navCon;
 					NSArray *pairComponents = [keyValuePair componentsSeparatedByString:@"="];
 					NSString *key = [[pairComponents firstObject] stringByRemovingPercentEncoding];
 					NSString *value = [[pairComponents lastObject] stringByRemovingPercentEncoding];
-					[queryStringDictionary setObject:value forKey:key];
+					queryStringDictionary[key] = value;
 				}
 				if([queryStringDictionary objectForKey:@"path"] && (!receivedURLMImport || (receivedURLMImport && ![[queryStringDictionary objectForKey:@"path"] isEqualToString:receivedURLMImport]))) {
 					needShowAgainMImportURL = YES;

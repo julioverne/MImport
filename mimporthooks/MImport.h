@@ -1,5 +1,5 @@
 #define _Bool BOOL
-#import "mimportsettings/prefs.h"
+#import <prefs.h>
 #import <CommonCrypto/CommonCrypto.h>
 
 // Media type keys

@@ -13,10 +13,7 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 
 all::
 	@echo "[+] Copying Files..."
-	@cp ./obj/MImportKit.dylib //Library/MobileSubstrate/DynamicLibraries/MImportKit.dylib
+	@cp ./obj/debug/MImportKit.dylib //Library/MobileSubstrate/DynamicLibraries/MImportKit.dylib
 	@/usr/bin/ldid -S //Library/MobileSubstrate/DynamicLibraries/MImportKit.dylib
 	@cp ./MImportKit.plist //Library/MobileSubstrate/DynamicLibraries/MImportKit.plist
-	@echo "DONE"
-	#@killall SpringBoard
-
-	
+	@echo "DONE"	
