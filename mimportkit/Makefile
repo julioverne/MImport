@@ -1,7 +1,7 @@
 include theos/makefiles/common.mk
 
 TWEAK_NAME = MImportKit
-MImportKit_FILES = MImportKit.xm
+MImportKit_FILES = /mnt/d/codes/MImport/mimportkit/MImportKit.xm
 
 MImportKit_FRAMEWORKS = UIKit Foundation CoreFoundation CydiaSubstrate
 MImportKit_PRIVATE_FRAMEWORKS = 
@@ -12,8 +12,5 @@ MImportKit_ARCHS = armv7 arm64
 include $(THEOS_MAKE_PATH)/tweak.mk
 
 all::
-	@echo "[+] Copying Files..."
-	@cp ./obj/debug/MImportKit.dylib //Library/MobileSubstrate/DynamicLibraries/MImportKit.dylib
-	@/usr/bin/ldid -S //Library/MobileSubstrate/DynamicLibraries/MImportKit.dylib
-	@cp ./MImportKit.plist //Library/MobileSubstrate/DynamicLibraries/MImportKit.plist
-	@echo "DONE"	
+
+	

@@ -26,7 +26,7 @@
  */
 
 #if !__has_feature(objc_arc)
-#error MImportWebServer requires ARC
+
 #endif
 
 #import "MImportWebServerPrivate.h"

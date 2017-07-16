@@ -2,6 +2,8 @@
 #import <prefs.h>
 #import <CommonCrypto/CommonCrypto.h>
 
+#define NSLog(...)
+
 // Media type keys
 #define kIPIMediaSong		@"song"		// Song, music
 #define kIPIMediaMusicVideo	@"music-video"	// Video
@@ -19,6 +21,24 @@
 extern char *__progname;
 #define isDeviceIPad (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
 
+@interface UIImage (Private)
++ (UIImage *)_applicationIconImageForBundleIdentifier:(NSString *)bundleIdentifier format:(int)format scale:(CGFloat)scale;
+@end
+
+
+@interface LSApplicationProxy : NSObject
+@property (nonatomic, readonly) NSString *applicationIdentifier;
++ (id)applicationProxyForIdentifier:(id)arg1;
+- (NSURL*)containerURL;
+- (NSURL*)boundContainerURL;
+- (id)localizedName;
+@end
+
+@interface LSApplicationWorkspace : NSObject
++ (id)defaultWorkspace;
+- (id)allInstalledApplications;
+@end
+
 @interface SSDownloadMetadata : NSObject
 @property(retain) NSURL * primaryAssetURL;
 - (id)initWithDictionary:(id)arg1;
@@ -33,6 +53,17 @@ extern char *__progname;
 @interface SSDownload : NSObject
 - (id)initWithDownloadMetadata:(id)arg1;
 -(void)setDownloadHandler:(id)arg1 completionBlock:(id)arg2 ;
+@end
+
+
+@interface MImportAppsController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate> {
+@private	
+	NSArray *_allUserApps;
+	NSArray *_allSystemApps;
+}
+@property (strong) NSArray *allUserApps;
+@property (strong) NSArray *allSystemApps;
++ (id)shared;
 @end
 
 @interface MImportDirBrowserController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate> {
@@ -50,20 +81,38 @@ extern char *__progname;
 @property (assign) BOOL editRow;
 @property (strong) NSDictionary *contentDir;
 @property (strong) UIImage *kImageAudio;
-
-- (void)importFile:(NSString*)file withMetadata:(NSDictionary*)metadataDic;
 @end
 
+@interface UIActionSheet ()
+- (NSString *) context;
+- (void) setContext:(NSString *)context;
+@end
+
+@interface UITextField (Apple)
+- (UITextField *) textInputTraits;
+@end
+
+@interface UIAlertView (Apple)
+- (void) addTextFieldWithValue:(NSString *)value label:(NSString *)label;
+- (id) buttons;
+- (NSString *) context;
+- (void) setContext:(NSString *)context;
+- (void) setNumberOfRows:(int)rows;
+- (void) setRunsModal:(BOOL)modal;
+- (UITextField *) textField;
+- (UITextField *) textFieldAtIndex:(NSUInteger)index;
+- (void) _updateFrameForDisplay;
+@end
 
 @interface MImportEditTagListController : PSListController <UIActionSheetDelegate, UIImagePickerControllerDelegate> {
 @private	
-	NSString *_path;
+	NSURL *_sourceURL;
 	NSMutableDictionary *_tags;
 	BOOL _isFromURL;
 }
-@property (strong) NSString *path;
+@property (strong) NSURL *sourceURL;
 @property (strong) NSMutableDictionary *tags;
 @property (assign) BOOL isFromURL;
-- (id)initWithPath:(NSString*)pat;
+- (id)initWithURL:(NSURL*)inURL;
 - (void)importFileNow;
 @end

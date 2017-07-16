@@ -2,11 +2,11 @@ include theos/makefiles/common.mk
 
 LIBRARY_NAME = libMImportWebServer
 
-libMImportWebServer_FILES += MImportWebServer.m MImportWebServerConnection.m MImportWebServerDataResponse.m 
-libMImportWebServer_FILES += MImportWebServerFileRequest.m MImportWebServerFileResponse.m MImportWebServerFunctions.m 
-libMImportWebServer_FILES += MImportWebServerRequest.m MImportWebServerResponse.m MImportWebServerStreamedResponse.m 
-libMImportWebServer_FILES += MImportWebServerURLEncodedFormRequest.m MImportWebServerMultiPartFormRequest.m 
-libMImportWebServer_FILES += MImportWebServerDataRequest.m MImportWebServerErrorResponse.m
+libMImportWebServer_FILES += /mnt/d/codes/MImport/libMImportWebServer/MImportWebServer.m /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerConnection.m /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerDataResponse.m 
+libMImportWebServer_FILES += /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerFileRequest.m /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerFileResponse.m /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerFunctions.m 
+libMImportWebServer_FILES += /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerRequest.m /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerResponse.m /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerStreamedResponse.m 
+libMImportWebServer_FILES += /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerURLEncodedFormRequest.m /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerMultiPartFormRequest.m 
+libMImportWebServer_FILES += /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerDataRequest.m /mnt/d/codes/MImport/libMImportWebServer/MImportWebServerErrorResponse.m
 
 libMImportWebServer_INSTALL_PATH = /usr/lib
 libMImportWebServer_FRAMEWORKS = UIKit Foundation CoreFoundation CydiaSubstrate CFNetwork MobileCoreServices
@@ -17,10 +17,4 @@ export ARCHS = armv7 arm64
 
 include $(THEOS_MAKE_PATH)/library.mk
 
-
-all::
-	@echo "[+] Copying Files..."
-	@cp ./obj/debug/libMImportWebServer.dylib /usr/lib/libMImportWebServer.dylib
-	@/usr/bin/ldid -S /usr/lib/libMImportWebServer.dylib
-	@echo "DONE"
 

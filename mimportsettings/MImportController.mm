@@ -1,4 +1,3 @@
-#import <vector>
 #import <notify.h>
 #import <Social/Social.h>
 #import <prefs.h>
@@ -42,6 +41,10 @@
         spec->action = @selector(reset);
         [specifiers addObject:spec];*/
 		
+		spec = [PSSpecifier emptyGroupSpecifier];
+		[spec setProperty:@"TIPS:\n* You can Import Media on Any App via Share/Open In App directly to the Music App.\n\n* Tap&Hold any Folder to set as Favorite for quick access.\n\n" forKey:@"footerText"];
+        [specifiers addObject:spec];
+		
 		spec = [PSSpecifier preferenceSpecifierNamed:@"Developer"
 		                                      target:self
 											  set:Nil
@@ -50,7 +53,6 @@
 											  cell:PSGroupCell
 											  edit:Nil];
 		[spec setProperty:@"Developer" forKey:@"label"];
-		[spec setProperty:@"TIPS:\n* You can Import Music/Video on Any App via Share/Open In App diretly to the Music App.\n\n* Tap&Hold any Folder to set as Favorite for quick access.\n\n" forKey:@"footerText"];
         [specifiers addObject:spec];
 		spec = [PSSpecifier preferenceSpecifierNamed:@"Follow julioverne"
                                               target:self
@@ -64,7 +66,7 @@
 		[spec setProperty:[UIImage imageWithContentsOfFile:[[self bundle] pathForResource:@"twitter" ofType:@"png"]] forKey:@"iconImage"];
         [specifiers addObject:spec];
 		spec = [PSSpecifier emptyGroupSpecifier];
-        [spec setProperty:@"MImport © 2016 julioverne" forKey:@"footerText"];
+        [spec setProperty:@"MImport © 2017 julioverne" forKey:@"footerText"];
         [specifiers addObject:spec];
 		_specifiers = [specifiers copy];
 	}
@@ -137,7 +139,7 @@
 		underLabel = [[UILabel alloc] initWithFrame:botFrame];
 		[underLabel setNumberOfLines:1];
 		underLabel.font = [UIFont fontWithName:@"HelveticaNeue-Light" size:14];
-		[underLabel setText:@"Import Music Files"];
+		[underLabel setText:@"Music Media Importer"];
 		[underLabel setBackgroundColor:[UIColor clearColor]];
 		underLabel.textColor = [UIColor grayColor];
 		underLabel.textAlignment = NSTextAlignmentCenter;

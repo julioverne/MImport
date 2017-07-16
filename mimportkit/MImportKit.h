@@ -7,11 +7,14 @@
 #import <Foundation/Foundation.h>
 #import <AppSupport/CPDistributedMessagingCenter.h>
 
+#define NSLog(...)
+
 @interface _UIDocumentActivityItemProvider : NSObject
 @property (nonatomic, copy) _UIDocumentActivityItemProvider *asset;
 - (id)item;
 - (id)mainFileURL;
 - (id)mediaPath; //NSString
+- (id)itemURL; //url
 @end
 
 @interface UIOpenWithAppActivityClass : UIActivity
