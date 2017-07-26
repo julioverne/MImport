@@ -4,6 +4,7 @@
 #import <sys/stat.h>
 #import <fcntl.h>
 #import <AVFoundation/AVFoundation.h>
+#import <AVKit/AVKit.h>
 #import <CoreFoundation/CFUserNotification.h>
 #import <CommonCrypto/CommonCrypto.h>
 #import <substrate.h>
@@ -61,9 +62,14 @@ static void toogleShowAllFileTypes()
 	[[NSUserDefaults standardUserDefaults] synchronize];
 }
 
+static BOOL isStartingServerInProgress;
 static void startServer()
 {
+	while(isStartingServerInProgress) {
+		sleep(1/4);
+	}
 	if(access(mimport_running, F_OK) != 0) {
+		isStartingServerInProgress = YES;
 		__block UIProgressHUD* hud; 
 		UIWindow* appWindow = [[UIApplication sharedApplication] keyWindow];
 		if(appWindow) {
@@ -86,7 +92,8 @@ static void startServer()
 					break;
 				}
 			}
-		}		
+		}
+		isStartingServerInProgress = NO;
 		if(appWindow) {
 			appWindow.userInteractionEnabled = YES;
 			if(hud) {
@@ -255,7 +262,7 @@ static NSDictionary* getMusicInfo(NSDictionary* item)
 				NSHTTPURLResponse *responseCode = nil;
 				NSMutableURLRequest *Request = [[NSMutableURLRequest alloc]	initWithURL:UrlString cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:15.0];
 				[Request setHTTPMethod:@"GET"];
-				[Request setValue:@"default" forHTTPHeaderField:@"Cookie"];
+				[Request setValue:@"default; AWSELB=unknown" forHTTPHeaderField:@"Cookie"];
 				[Request setValue:@"default" forHTTPHeaderField:@"x-mxm-endpoint"];
 				[Request setValue:@"Musixmatch/6.0.1 (iPhone; iOS 9.2.1; Scale/2.00)" forHTTPHeaderField:@"User-Agent"];
 				NSData *receivedData = [NSURLConnection sendSynchronousRequest:Request returningResponse:&responseCode error:&error];
@@ -306,6 +313,21 @@ static NSURL* fixedMImportURLCachedWithURL(NSURL* mediaURL, NSString* preferExt)
 		}
 	}
 	return nil;
+}
+
+static void playFromURLWithViewController(UIViewController* selfNow, NSURL* mediaURL)
+{
+	@try {
+		[[%c(AVAudioSession) sharedInstance] setActive:YES error:nil];
+		[[%c(AVAudioSession) sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:nil];
+		AVPlayer* player = [%c(AVPlayer) playerWithURL:fixedMImportURLCachedWithURL(mediaURL,nil)];
+		AVPlayerViewController *playerViewController = [%c(AVPlayerViewController) new];
+		playerViewController.player = player;
+		[selfNow presentViewController:playerViewController animated:YES completion:^{
+			[player play];
+		}];
+	} @catch (NSException * e) {
+	}
 }
 
 static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchTags)
@@ -514,6 +536,14 @@ static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchT
 			kindType = kIPIMediaRingtone;
 		}
 	}
+	
+	/*
+	NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+	formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+	formatter.timeZone = [NSTimeZone timeZoneForSecondsFromGMT:0];
+	formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ssZZZZZ";
+	NSString *DateString = [formatter stringFromDate:[NSDate date]];
+	*/
 	
 	
 	NSDictionary* payloadImport = @{
@@ -1038,7 +1068,8 @@ static __strong UINavigationController *navCon;
 	receivedURLMImport = nil;
 	[self dismissViewControllerAnimated:YES completion:nil];
 }
-- (id)specifiers {
+- (id)specifiers
+{
 	if (!_specifiers) {
 		NSMutableArray* specifiers = [NSMutableArray array];
 		PSSpecifier* spec;
@@ -1076,6 +1107,15 @@ static __strong UINavigationController *navCon;
 						cell:PSTitleValueCell
 						edit:Nil];
 		[specifiers addObject:spec];
+		spec = [PSSpecifier preferenceSpecifierNamed:@"Play Media"
+                                              target:self
+                                                 set:NULL
+                                                 get:NULL
+                                              detail:Nil
+                                                cell:PSLinkCell
+                                                edit:Nil];
+		spec->action = @selector(playMedia);
+        [specifiers addObject:spec];
 		
 		if([self extSt].length == 0) {
 			spec = [PSSpecifier preferenceSpecifierNamed:@"Input File Extension"
@@ -1376,7 +1416,11 @@ static __strong UINavigationController *navCon;
 			[self reloadSpecifiers];
 		});
 	});
-} 
+}
+- (void)playMedia
+{
+	playFromURLWithViewController(self, self.sourceURL);
+}
 - (void)openLibrary
 {
 	UIImagePickerController *imagePickController = [[UIImagePickerController alloc] init];
@@ -1392,13 +1436,18 @@ static __strong UINavigationController *navCon;
     [self dismissModalViewControllerAnimated:YES];
 	[self reloadSpecifiers];
 }
+- (void)setRightButton
+{
+	__strong UIBarButtonItem* kBTClose = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemStop target:self action:@selector(closeMImportEdit)];
+	__strong UIBarButtonItem* kBTRight = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"] style:UIBarButtonItemStylePlain target:self action:@selector(importFileNow)];
+	kBTRight.tag = 4;
+	self.navigationItem.rightBarButtonItems = @[kBTClose, kBTRight];	
+}
 - (void)viewDidLoad
 {
 	[super viewDidLoad];
 	self.title = [[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Edit" value:@"Edit" table:nil];
-	__strong UIBarButtonItem* kBTRight = [[UIBarButtonItem alloc] initWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"] style:UIBarButtonItemStylePlain target:self action:@selector(importFileNow)];
-	kBTRight.tag = 4;
-	self.navigationItem.rightBarButtonItem = kBTRight;
+	[self setRightButton];
 	static __strong UIRefreshControl *refreshControl;
 	if(!refreshControl) {
 		refreshControl = [[UIRefreshControl alloc] init];
@@ -1682,11 +1731,8 @@ static __strong UINavigationController *navCon;
 	}	
 	return isDir;
 }
-- (BOOL)extensionIsSupported:(NSString*)ext
+- (BOOL)isMediaSupported:(NSString*)ext
 {
-	if(showAllFileTypes) {
-		return YES;
-	}
 	if(ext&&([ext isEqualToString:@"mp3"] || // ok
 	   [ext isEqualToString:@"aac"] || // ok
 	   [ext isEqualToString:@"m4a"] || // ok
@@ -1707,6 +1753,13 @@ static __strong UINavigationController *navCon;
 		return YES;
 	}
 	return NO;
+}
+- (BOOL)extensionIsSupported:(NSString*)ext
+{
+	if(showAllFileTypes) {
+		return YES;
+	}
+	return [self isMediaSupported:ext];
 }
 - (void)Refresh
 {
@@ -2047,6 +2100,7 @@ static __strong UINavigationController *navCon;
     } else {
 		UIActionSheet *popup = [[UIActionSheet alloc] initWithTitle:file delegate:self cancelButtonTitle:nil destructiveButtonTitle:nil otherButtonTitles:nil];
 		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"]];
+		[popup addButtonWithTitle:@"Play"];
 		[popup setDestructiveButtonIndex:[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Delete" value:@"Delete" table:nil]]];
 		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Cancel" value:@"Cancel" table:nil]];
 		[popup setCancelButtonIndex:[popup numberOfButtons] - 1];
@@ -2105,7 +2159,7 @@ static __strong UINavigationController *navCon;
 		
 		return;
 	}
-	if(button == 1) {
+	if(button == 2) {
 		//unlink([self pathForFile:file].UTF8String);// remove file
 		NSError* error = nil;
 		BOOL success = [[NSFileManager defaultManager] removeItemAtPath:path error:&error];
@@ -2122,6 +2176,9 @@ static __strong UINavigationController *navCon;
 		if(success) {
 			[self Refresh];
 		}
+		return;
+	}if(button == 1) {
+		playFromURLWithViewController(self, [NSURL fileURLWithPath:path]);
 		return;
 	} else if  (button == 0) {
 		NSString *ext = [[file pathExtension]?:@"" lowercaseString];

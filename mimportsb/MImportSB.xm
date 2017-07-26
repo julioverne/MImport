@@ -13,6 +13,15 @@
 static __strong MImportWebServer* _webServer;
 
 const char* mimport_running = "/private/var/mobile/Media/mimport_running";
+#define MIMPORT_CACHE_URL "/private/var/mobile/Media/mImportCache.plist"
+
+static void disableServerAndCleanCache(BOOL cleanCache)
+{
+	unlink(mimport_running);
+	if(cleanCache) {
+		unlink(MIMPORT_CACHE_URL);
+	}
+}
 
 @interface SpringBoard : NSObject
 - (void)mimportAllocServer;
@@ -38,7 +47,7 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 }
 - (void)mimportTimeoutServer
 {
-	unlink(mimport_running);
+	disableServerAndCleanCache(YES);
 }
 @end
 
@@ -46,7 +55,7 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 - (void)applicationDidFinishLaunching:(id)application
 {
     %orig;
-	unlink(mimport_running);
+	disableServerAndCleanCache(NO);
 	[NSTimer scheduledTimerWithTimeInterval:kMaxIdleTimeSeconds target:self selector:@selector(mimportChecker) userInfo:nil repeats:YES];
 }
 %new
@@ -65,7 +74,7 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 		[[MImportServer shared] resetTimeOutCheck];
 		
 		NSURL* url = request.URL;
-		NSDictionary* cachedUrls = [[NSDictionary alloc] initWithContentsOfFile:@"/private/var/mobile/Media/mImportCache.plist"]?:@{};
+		NSDictionary* cachedUrls = [[NSDictionary alloc] initWithContentsOfFile:@MIMPORT_CACHE_URL]?:@{};
 		if(NSString * urlFromMD5St = cachedUrls[[[url lastPathComponent] stringByDeletingPathExtension]]) {
 			if(NSURL* urlFromMD5 = [NSURL URLWithString:urlFromMD5St]) {
 				if([urlFromMD5 isFileURL]) {
@@ -87,7 +96,7 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 		
 		CFDictionaryRef piDict = nil;
 		NSURL* url = request.URL;
-		NSDictionary* cachedUrls = [[NSDictionary alloc] initWithContentsOfFile:@"/private/var/mobile/Media/mImportCache.plist"]?:@{};
+		NSDictionary* cachedUrls = [[NSDictionary alloc] initWithContentsOfFile:@MIMPORT_CACHE_URL]?:@{};
 		if(NSString * urlFromMD5St = cachedUrls[[[url lastPathComponent] stringByDeletingPathExtension]]) {
 			if(NSURL* urlFromMD5 = [NSURL URLWithString:urlFromMD5St]) {
 				if([urlFromMD5 isFileURL]) {
@@ -134,7 +143,7 @@ const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 
 __attribute__((constructor)) static void initialize_mimportCenter()
 {
-	unlink(mimport_running);
+	disableServerAndCleanCache(NO);
 }
 
 
