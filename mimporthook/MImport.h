@@ -27,6 +27,7 @@ extern char *__progname;
 
 
 @interface LSApplicationProxy : NSObject
+@property (nonatomic,readonly) NSDictionary * groupContainerURLs; // iOS 8 - 10.2
 @property (nonatomic, readonly) NSString *applicationIdentifier;
 + (id)applicationProxyForIdentifier:(id)arg1;
 - (NSURL*)containerURL;
@@ -60,9 +61,11 @@ extern char *__progname;
 @private	
 	NSArray *_allUserApps;
 	NSArray *_allSystemApps;
+	NSArray *_allSharedGroup;
 }
 @property (strong) NSArray *allUserApps;
 @property (strong) NSArray *allSystemApps;
+@property (strong) NSArray *allSharedGroup;
 + (id)shared;
 @end
 
@@ -115,4 +118,12 @@ extern char *__progname;
 @property (assign) BOOL isFromURL;
 - (id)initWithURL:(NSURL*)inURL;
 - (void)importFileNow;
+@end
+
+@interface CellInfoApp : NSObject
+@property (strong) NSURL *sourceURL;
+@property (strong) UIImage *icon;
+@property (strong) NSString *name;
+@property (strong) NSString *info;
+@property (strong) NSString *bundleId;
 @end

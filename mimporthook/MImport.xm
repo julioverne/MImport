@@ -68,16 +68,15 @@ static void startServer()
 	while(isStartingServerInProgress) {
 		sleep(1/4);
 	}
-	if(access(mimport_running, F_OK) != 0) {
+	if(!isStartingServerInProgress && access(mimport_running, F_OK) != 0) {
 		isStartingServerInProgress = YES;
-		__block UIProgressHUD* hud; 
+		__block UIProgressHUD* hud = [[UIProgressHUD alloc] init];
 		UIWindow* appWindow = [[UIApplication sharedApplication] keyWindow];
 		if(appWindow) {
-			appWindow.userInteractionEnabled = NO;
 			dispatch_async(dispatch_get_main_queue(), ^(void) {
-				hud = [[UIProgressHUD alloc] init];
+				appWindow.userInteractionEnabled = NO;
 				[hud setText:@"Starting MImport..."];
-				[hud showInView:[[UIApplication sharedApplication] keyWindow]];
+				[hud showInView:appWindow];
 			});
 		}
 		close(open(mimport_running, O_CREAT));
@@ -93,15 +92,13 @@ static void startServer()
 				}
 			}
 		}
-		isStartingServerInProgress = NO;
 		if(appWindow) {
-			appWindow.userInteractionEnabled = YES;
-			if(hud) {
-				dispatch_async(dispatch_get_main_queue(), ^(void) {
-					[hud hide];
-				});
-			}
+			dispatch_async(dispatch_get_main_queue(), ^(void) {
+				appWindow.userInteractionEnabled = YES;
+				[hud hide];
+			});
 		}
+		isStartingServerInProgress = NO;
 	}
 }
 
@@ -303,6 +300,7 @@ static NSURL* fixedMImportURLCachedWithURL(NSURL* mediaURL, NSString* preferExt)
 {
 	if(mediaURL) {
 		@autoreleasepool {
+			startServer();
 			NSMutableDictionary* cachedUrls = [[[NSDictionary alloc] initWithContentsOfFile:kMImportCacheServer]?:@{} mutableCopy];
 			NSString* mediaURLSt = [mediaURL absoluteString];
 			NSString* md5StringURLSt = md5String(mediaURLSt);
@@ -536,14 +534,6 @@ static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchT
 			kindType = kIPIMediaRingtone;
 		}
 	}
-	
-	/*
-	NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-	formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
-	formatter.timeZone = [NSTimeZone timeZoneForSecondsFromGMT:0];
-	formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ssZZZZZ";
-	NSString *DateString = [formatter stringFromDate:[NSDate date]];
-	*/
 	
 	
 	NSDictionary* payloadImport = @{
@@ -792,6 +782,9 @@ static __strong UINavigationController *navCon;
 %new
 - (void)launchMImport
 {
+	if(isStartingServerInProgress) {
+		return;
+	}
 	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 		startServer();
 		dispatch_async(dispatch_get_main_queue(), ^(void) {
@@ -1483,9 +1476,12 @@ static __strong UINavigationController *navCon;
 @end
 
 
+@implementation CellInfoApp
+@synthesize sourceURL, icon, bundleId, name, info;
+@end
 
 @implementation MImportAppsController
-@synthesize allUserApps = _allUserApps, allSystemApps = _allSystemApps;
+@synthesize allUserApps = _allUserApps, allSystemApps = _allSystemApps, allSharedGroup = _allSharedGroup;
 + (id)shared
 {
 	static __strong MImportAppsController* MImportAppsControllerC;
@@ -1500,6 +1496,7 @@ static __strong UINavigationController *navCon;
 	if(self) {
 		self.allUserApps = [NSArray array];
 		self.allSystemApps = [NSArray array];
+		self.allSharedGroup = [NSArray array];
 	}
 	return self;
 }
@@ -1512,25 +1509,46 @@ static __strong UINavigationController *navCon;
 	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 		NSMutableArray* appUserPx = [NSMutableArray array];
 		NSMutableArray* appSystemPx = [NSMutableArray array];
+		NSMutableArray* sharedGroupArr = [NSMutableArray array];
+		NSMutableDictionary* sharedGroup = [NSMutableDictionary dictionary];
 		LSApplicationWorkspace* lsWk = [%c(LSApplicationWorkspace) defaultWorkspace];
 		for(LSApplicationProxy* appNow in [lsWk allInstalledApplications]) {
 			NSURL* dataURL = [appNow containerURL];
 			if(dataURL&&[dataURL absoluteString].length>0) {
-				[[appNow boundContainerURL]!=nil?appUserPx:appSystemPx addObject:appNow];
+				CellInfoApp* CellAppNow = [[CellInfoApp alloc] init];
+				CellAppNow.name = [appNow localizedName];
+				CellAppNow.sourceURL = dataURL;
+				CellAppNow.bundleId = appNow.applicationIdentifier;
+				CellAppNow.icon = [UIImage _applicationIconImageForBundleIdentifier:appNow.applicationIdentifier format:0 scale:[UIScreen mainScreen].scale];
+				[[appNow boundContainerURL]!=nil?appUserPx:appSystemPx addObject:CellAppNow];
+			}
+			if([appNow respondsToSelector:@selector(groupContainerURLs)]) {
+				NSDictionary* sharedGroupNow = [appNow groupContainerURLs];
+				for(NSString* groupIdNow in [sharedGroupNow allKeys]) {
+					sharedGroup[groupIdNow] = sharedGroupNow[groupIdNow];
+				}
 			}
 		}
-		[appSystemPx sortUsingComparator:^NSComparisonResult(LSApplicationProxy* obj1, LSApplicationProxy* obj2) {
-			NSString* name1 = [obj1 localizedName]?:@"";
-			NSString* name2 = [obj2 localizedName]?:@"";
+		for(NSString* groupIdNow in [sharedGroup allKeys]) {
+			CellInfoApp* CellAppNow = [[CellInfoApp alloc] init];
+			CellAppNow.name = groupIdNow;
+			CellAppNow.sourceURL = sharedGroup[groupIdNow];
+			[sharedGroupArr addObject:CellAppNow];
+		}
+		[appSystemPx sortUsingComparator:^NSComparisonResult(CellInfoApp* obj1, CellInfoApp* obj2) {
+			NSString* name1 = [obj1 name]?:@"";
+			NSString* name2 = [obj2 name]?:@"";
 			return [name1 compare:name2];
 		}];
-		[appUserPx sortUsingComparator:^NSComparisonResult(LSApplicationProxy* obj1, LSApplicationProxy* obj2) {
-			NSString* name1 = [obj1 localizedName]?:@"";
-			NSString* name2 = [obj2 localizedName]?:@"";
+		[appUserPx sortUsingComparator:^NSComparisonResult(CellInfoApp* obj1, CellInfoApp* obj2) {
+			NSString* name1 = [obj1 name]?:@"";
+			NSString* name2 = [obj2 name]?:@"";
 			return [name1 compare:name2];
 		}];
+		
 		self.allSystemApps = [appSystemPx copy];
 		self.allUserApps = [appUserPx copy];
+		self.allSharedGroup = [sharedGroupArr copy];
 		dispatch_async(dispatch_get_main_queue(), ^(void) {
 			[hud hide];
 			[self.view setUserInteractionEnabled:YES];
@@ -1546,19 +1564,19 @@ static __strong UINavigationController *navCon;
 		cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:CellIdentifier];
     }
 	
-	LSApplicationProxy* appRow = indexPath.section==0?self.allUserApps[indexPath.row]:self.allSystemApps[indexPath.row];
-	cell.textLabel.text = [appRow localizedName];
-	cell.detailTextLabel.text = [appRow applicationIdentifier];
-	cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-	cell.imageView.image = [UIImage _applicationIconImageForBundleIdentifier:appRow.applicationIdentifier format:0 scale:[UIScreen mainScreen].scale];
+	CellInfoApp* appRow = indexPath.section==0?self.allUserApps[indexPath.row]:indexPath.section==1?self.allSystemApps[indexPath.row]:self.allSharedGroup[indexPath.row];
+	cell.textLabel.text = appRow.name;
+	cell.detailTextLabel.text = appRow.info;
+	cell.imageView.image = appRow.icon;
 	
+	cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     return cell;
 }
 - (NSIndexPath *)tableView:(UITableView *)tableView willSelectRowAtIndexPath:(NSIndexPath *)indexPath 
 {
-	LSApplicationProxy* appRow = indexPath.section==0?self.allUserApps[indexPath.row]:self.allSystemApps[indexPath.row];
+	CellInfoApp* appRow = indexPath.section==0?self.allUserApps[indexPath.row]:indexPath.section==1?self.allSystemApps[indexPath.row]:self.allSharedGroup[indexPath.row];
 	MImportDirBrowserController *dbtvc = [[[MImportDirBrowserController alloc] init] initWithStyle:self.tableView.style];
-	dbtvc.path = [[appRow containerURL] path];
+	dbtvc.path = [[appRow sourceURL] path];
 	@try {
 		[self.navigationController pushViewController:dbtvc animated:YES];
 	} @catch (NSException * e) {
@@ -1568,7 +1586,7 @@ static __strong UINavigationController *navCon;
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
-	[self Refresh];
+	//[self Refresh];
 }
 - (void)viewDidAppear:(BOOL)animated
 {
@@ -1613,10 +1631,18 @@ static __strong UINavigationController *navCon;
 	UIRefreshControl *refreshControl = [[UIRefreshControl alloc] init];
 	[refreshControl addTarget:self action:@selector(refreshView:) forControlEvents:UIControlEventValueChanged];
 	[self.tableView addSubview:refreshControl];
+	[self Refresh];
 }
 - (NSString*)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section
 {
-	return @"Application Documents";
+	if(section==0) {
+		return @"User Documents";
+	} else if(section==1) {
+		return @"System Documents";
+	} else if(section==2) {
+		return @"Shared Group Documents";
+	}
+	return nil;
 }
 - (void)loadView
 {
@@ -1629,11 +1655,11 @@ static __strong UINavigationController *navCon;
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
 {
-    return 2;
+    return 3;
 }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
-    return [section==0?self.allUserApps:self.allSystemApps count];
+    return [section==0?self.allUserApps:section==1?self.allSystemApps:self.allSharedGroup count];
 }
 - (void)closeMImport
 {
@@ -1892,9 +1918,6 @@ static __strong UINavigationController *navCon;
 	[self.tableView addSubview:refreshControl];
 	
 	self.tableView.allowsMultipleSelection = YES;
-	
-	//[self.navigationController.navigationBar setBarTintColor:[UIColor colorWithRed:0.86 green:0.91 blue:1.00 alpha:1.0]];
-	//[self.navigationController.navigationBar setTranslucent:NO];
 }
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
@@ -1917,15 +1940,6 @@ static __strong UINavigationController *navCon;
 	[self setRightButton];
 }
 
-/*- (void)tableView:(UITableView *)tableView didDeselectRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    UITableViewCell *tableViewCell = [tableView cellForRowAtIndexPath:indexPath];	
-    tableViewCell.accessoryType = UITableViewCellAccessoryNone;
-	if ([self.selectedRows containsObject:@(indexPath.row)]) {
-		[self.selectedRows removeObject:@(indexPath.row)];
-	}
-}*/
-
 - (void)cancelSelectRow
 {
 	self.editRow = NO;
@@ -1943,15 +1957,31 @@ static __strong UINavigationController *navCon;
 {
 	self.editRow = !self.editRow;
 	[self setRightButton];
-	if(!self.editRow) {
-		for(id indexNowValue in self.selectedRows) {
-			int indexNow = [indexNowValue intValue];
-			NSString *file = [self.files objectAtIndex:indexNow];
-			NSString *path = [self pathForFile:file];
-			MImport_import([NSURL fileURLWithPath:path], nil, YES);
-		}		
-		[self cancelSelectRow];
-		[self closeMImport];
+	int total = [self.selectedRows count];
+	if(!self.editRow && (total > 0)) {
+		__block UIProgressHUD* hud = [[UIProgressHUD alloc] init];
+		[hud setText:@"Loading..."];
+		[hud showInView:self.view];
+		[self.view setUserInteractionEnabled:NO];
+		dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+			int index = 0;
+			for(id indexNowValue in self.selectedRows) {
+				index++;
+				int indexNow = [indexNowValue intValue];
+				NSString *file = [self.files objectAtIndex:indexNow];
+				NSString *path = [self pathForFile:file];
+				dispatch_async(dispatch_get_main_queue(), ^(void) {
+					[hud setText:[NSString stringWithFormat:@"Adding %d of %d ...", index, total]];
+				});
+				MImport_import([NSURL fileURLWithPath:path], nil, YES);
+			}
+			dispatch_async(dispatch_get_main_queue(), ^(void) {
+				[self.view setUserInteractionEnabled:YES];
+				[hud hide];
+				[self cancelSelectRow];
+				[self closeMImport];
+			});
+		});
 	}
 }
 - (void)closeMImport
@@ -2311,6 +2341,9 @@ static __strong UINavigationController *navCon;
 - (void)launchMImport
 {
 	NSLog(@"*** launchMImport");
+	if(isStartingServerInProgress) {
+		return;
+	}
 	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 		startServer();
 		dispatch_async(dispatch_get_main_queue(), ^(void) {
