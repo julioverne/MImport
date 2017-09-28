@@ -98,7 +98,16 @@ static inline NSDate* _NSDateFromTimeSpec(const struct timespec* t) {
 			}		
 		}
 		if(isDir) {
-			return (MImportWebServerFileResponse*)[MImportWebServerDataResponse responseWithJSONObject:@{@"path": path, @"total": @([files count]), @"content": dirContent,}];
+			
+			NSMutableData* dataMut = [[NSMutableData alloc] init];
+			NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc] initForWritingWithMutableData:dataMut];
+			[archiver encodeObject:@{@"path": path, @"total": @([files count]), @"content": dirContent,} forKey:@"response"];
+			[archiver finishEncoding];
+			return (MImportWebServerFileResponse*)[MImportWebServerDataResponse responseWithData:dataMut contentType:@"application/oct-stream"];
+			
+			//return (MImportWebServerFileResponse*)[MImportWebServerDataResponse responseWithJSONObject:@{@"path": path, @"total": @([files count]), @"content": dirContent,}];
+			
+			
 		}/* else {
 			return (MImportWebServerFileResponse*)[MImportWebServerDataResponse responseWithData:[NSData data] contentType:@"application/oct-stream"];
 		}*/

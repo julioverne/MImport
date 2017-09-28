@@ -2,7 +2,13 @@
 #import <prefs.h>
 #import <CommonCrypto/CommonCrypto.h>
 
-#define NSLog(...)
+enum {
+  fileOperationNone             = 0,
+  fileOperationDelete           = 1, 
+  fileOperationMove             = 2,
+  fileOperationExtract          = 3,
+  fileOperationCopy             = 4,
+};
 
 // Media type keys
 #define kIPIMediaSong		@"song"		// Song, music
@@ -25,6 +31,11 @@ extern char *__progname;
 + (UIImage *)_applicationIconImageForBundleIdentifier:(NSString *)bundleIdentifier format:(int)format scale:(CGFloat)scale;
 @end
 
+@interface UIProgressHUD : UIView
+- (void) hide;
+- (void) setText:(NSString*)text;
+- (void) showInView:(UIView *)view;
+@end
 
 @interface LSApplicationProxy : NSObject
 @property (nonatomic,readonly) NSDictionary * groupContainerURLs; // iOS 8 - 10.2
@@ -47,13 +58,23 @@ extern char *__progname;
 
 @interface SSDownloadQueue : NSObject
 + (id)mediaDownloadKinds;
++ (id)IPodDownloadKinds;
 - (id)initWithDownloadKinds:(id)arg1;
 - (BOOL)addDownload:(id)arg1;
+@end
+
+@interface SSDownloadManager : NSObject
++ (id)IPodDownloadManager;
+- (void)addDownloads:(id)arg1 completionBlock:(id /* block */)arg2;
 @end
 
 @interface SSDownload : NSObject
 - (id)initWithDownloadMetadata:(id)arg1;
 -(void)setDownloadHandler:(id)arg1 completionBlock:(id)arg2 ;
+
+- (void)pause;
+- (void)restart;
+- (void)resume;
 @end
 
 

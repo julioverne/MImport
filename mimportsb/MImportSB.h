@@ -7,9 +7,15 @@
 #import <dlfcn.h>
 #import <Foundation/Foundation.h>
 #import <AppSupport/CPDistributedMessagingCenter.h>
+#import <AudioToolbox/AudioToolbox.h>
 
-#define NSLog(...)
-
+enum {
+  fileOperationNone             = 0,
+  fileOperationDelete           = 1, 
+  fileOperationMove             = 2,
+  fileOperationExtract          = 3,
+  fileOperationCopy             = 4,
+};
 
 @interface LSApplicationProxy : NSObject
 @property (nonatomic, readonly) long bundleModTime;

@@ -11,17 +11,13 @@
 #import <MobileCoreServices/MobileCoreServices.h>
 #import "MImport.h"
 
-@interface UIProgressHUD : UIView
-- (void) hide;
-- (void) setText:(NSString*)text;
-- (void) showInView:(UIView *)view;
-@end
-
+#define NSLog(...)
 
 const char* mimport_running = "/private/var/mobile/Media/mimport_running";
 
 static __strong NSString* kPathWork = @"/";// @"/private/var/mobile/Media/";
 static __strong NSString* kExt = @"fileExtension";
+static __strong NSString* kIsFileZip = @"isFileZip";
 static __strong NSString* kSearchTitle = @"searchTitle";
 static __strong NSString* kTitle = @"title";
 static __strong NSString* kAlbum = @"album";
@@ -85,7 +81,6 @@ static void startServer()
 			@autoreleasepool {
 				NSError *error = nil;
 				NSMutableURLRequest *Request = [[NSMutableURLRequest alloc]	initWithURL:[NSURL URLWithString:kUrlServer] cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:3];
-				NSLog(@"*** Make REQUEST");
 				NSData *receivedData = [NSURLConnection sendSynchronousRequest:Request returningResponse:nil error:&error];
 				if(!error && receivedData) {
 					break;
@@ -102,6 +97,7 @@ static void startServer()
 	}
 }
 
+
 static NSURL* fixURLRemoteOrLocalWithPath(NSString* inPath)
 {
 	NSString* inPathRet = inPath;
@@ -117,7 +113,7 @@ static NSURL* fixURLRemoteOrLocalWithPath(NSString* inPath)
 		inPathRet = [inPathRet substringFromIndex:1];
 	}
 	NSURL* retURL = [inPathRet hasPrefix:@"/"]?[NSURL fileURLWithPath:inPathRet]:[NSURL URLWithString:inPathRet];
-	NSLog(@"*** fixURLRemoteOrLocalWithPath:\n inPath: %@ \n inPathRet: %@ \n retURL: %@", inPath, inPathRet, retURL);
+	//NSLog(@"*** fixURLRemoteOrLocalWithPath:\n inPath: %@ \n inPathRet: %@ \n retURL: %@", inPath, inPathRet, retURL);
 	return retURL;
 }
 
@@ -328,6 +324,79 @@ static void playFromURLWithViewController(UIViewController* selfNow, NSURL* medi
 	}
 }
 
+static BOOL fileOperation(int operationType, NSString* path1, NSString* path2, NSString** pathDest)
+{
+	BOOL result = NO;
+	
+	NSMutableData* dataMut = [[NSMutableData alloc] init];
+	NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc] initForWritingWithMutableData:dataMut];
+	[archiver encodeObject:@(operationType) forKey:@"operationType"];
+	if(path1) {
+		[archiver encodeObject:path1 forKey:@"path1"];
+	}
+	if(path2) {
+		[archiver encodeObject:path2 forKey:@"path2"];
+	}
+	[archiver finishEncoding];
+	
+	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:kUrlServer]];
+	[request setHTTPMethod:@"FILEMAN"];
+	[request setTimeoutInterval:3600];
+	[request setHTTPBody:dataMut];
+	request.cachePolicy = NSURLRequestReloadIgnoringLocalAndRemoteCacheData;
+	NSError* error = nil;
+	NSData* data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error];
+	if(data) {
+		NSDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil]?:@{};
+		result = [jsonDic[@"result"]?:@NO boolValue];
+		NSString* errorSt = jsonDic[@"error"]?:[NSString string];
+		if(pathDest) {
+			*pathDest = jsonDic[@"pathDest"];
+		}
+		if([errorSt length]>0 || !result) {
+			dispatch_async(dispatch_get_main_queue(), ^(void) {
+				UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
+						    message:([errorSt length]>0)?errorSt:@"Error"
+						    delegate:nil
+						    cancelButtonTitle:@"OK" 
+						    otherButtonTitles:nil];
+				[alert show];
+			});
+		}
+	}
+	if(error) {
+		dispatch_async(dispatch_get_main_queue(), ^(void) {
+			UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
+						    message:[error description]
+						    delegate:nil
+						    cancelButtonTitle:@"OK" 
+						    otherButtonTitles:nil];
+			[alert show];
+		});
+	}	
+	return result;
+}
+
+static NSDictionary* fileTagsAtURL(NSURL* fileServerURL)
+{
+	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:fileServerURL];
+	[request setHTTPMethod:@"POST"];
+	request.cachePolicy = NSURLRequestReloadIgnoringLocalAndRemoteCacheData;
+	NSError* error = nil;
+	NSData *data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error];
+	if(error) {
+		dispatch_async(dispatch_get_main_queue(), ^(void) {
+			UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
+						    message:[error description]
+						    delegate:nil
+						    cancelButtonTitle:@"OK" 
+						    otherButtonTitles:nil];
+			[alert show];
+		});
+	}
+	return [[NSJSONSerialization JSONObjectWithData:data?:[NSData data] options:kNilOptions error:NULL]?:@{} copy];
+}
+
 static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchTags)
 {
 	@try {
@@ -344,27 +413,13 @@ static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchT
 	
 	__strong NSURL *audioURL = fixedMImportURLCachedWithURL(mediaURL, [mediaInfo objectForKey:kExt]);
 	
-	NSData *data = nil;
-	if(fetchTags&&[mediaURL isFileURL]) {
-		NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:audioURL];
-		[request setHTTPMethod:@"POST"];
-		request.cachePolicy = NSURLRequestReloadIgnoringLocalAndRemoteCacheData;
-		NSError* error = nil;
-		data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error];
-		if(error) {
-			dispatch_async(dispatch_get_main_queue(), ^(void) {
-				UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
-						    message:[error description]
-						    delegate:nil
-						    cancelButtonTitle:@"OK" 
-						    otherButtonTitles:nil];
-				[alert show];
-			});
-		}
-	}
-	CFDictionaryRef piDict = (__bridge CFDictionaryRef)[[NSJSONSerialization JSONObjectWithData:data?:[NSData data] options:kNilOptions error:NULL] copy];
+	NSDictionary* piDict = [NSDictionary dictionary];
 	
-	NSLog(@"*** MImport_import() \n Server URL: %@ \n Path: %@ \n piDict: %@", [audioURL absoluteString], mediaURL, piDict);
+	if(fetchTags&&[mediaURL isFileURL]) {
+		piDict = fileTagsAtURL(audioURL);
+	}
+	
+	//NSLog(@"*** MImport_import() \n Server URL: %@ \n Path: %@ \n piDict: %@", [audioURL absoluteString], mediaURL, piDict);
 	
 	
 	
@@ -444,12 +499,12 @@ static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchT
 	
 	NSString *title, *album, *artist, *copyright, *genre, *composer, *lyric;
 	
-	title     = [mediaInfo objectForKey:kTitle]?:[metaDataParse objectForKey:kTitle]?:[(__bridge NSDictionary *)piDict objectForKey:kTitle]?:[[[mediaURL path] lastPathComponent] stringByDeletingPathExtension]?:@"Unknown Title";
-	album     = [mediaInfo objectForKey:kAlbum]?:[metaDataParse objectForKey:@"albumName"]?:[(__bridge NSDictionary *)piDict objectForKey:kAlbum]?:@"Unknown Album";
-	artist    = [mediaInfo objectForKey:kArtist]?:[metaDataParse objectForKey:kArtist]?:[(__bridge NSDictionary *)piDict objectForKey:kArtist]?:@"Unknown Artist";
-	copyright = [metaDataParse objectForKey:@"copyright"]?:[(__bridge NSDictionary *)piDict objectForKey:@"copyright"]?:@"\u2117 MImport.";
-	genre     = [mediaInfo objectForKey:kGenre]?:[(__bridge NSDictionary *)piDict objectForKey:kGenre];
-	composer  = [mediaInfo objectForKey:kComposer]?:[(__bridge NSDictionary *)piDict objectForKey:kComposer];
+	title     = [mediaInfo objectForKey:kTitle]?:[metaDataParse objectForKey:kTitle]?:[piDict objectForKey:kTitle]?:[[[mediaURL path] lastPathComponent] stringByDeletingPathExtension]?:@"Unknown Title";
+	album     = [mediaInfo objectForKey:kAlbum]?:[metaDataParse objectForKey:@"albumName"]?:[piDict objectForKey:kAlbum]?:@"Unknown Album";
+	artist    = [mediaInfo objectForKey:kArtist]?:[metaDataParse objectForKey:kArtist]?:[piDict objectForKey:kArtist]?:@"Unknown Artist";
+	copyright = [metaDataParse objectForKey:@"copyright"]?:[piDict objectForKey:@"copyright"]?:@"\u2117 MImport.";
+	genre     = [mediaInfo objectForKey:kGenre]?:[piDict objectForKey:kGenre];
+	composer  = [mediaInfo objectForKey:kComposer]?:[piDict objectForKey:kComposer];
 	lyric     = [mediaInfo objectForKey:kLyrics];
 	
 	int durationSecond = 0;
@@ -459,7 +514,7 @@ static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchT
 	int trackCount = 1;
 	int isExplicit = 0;
 	
-	durationSecond = [[mediaInfo objectForKey:kDuration]?:[(__bridge NSDictionary *)piDict objectForKey:kDuration]?:@(0) intValue];
+	durationSecond = [[mediaInfo objectForKey:kDuration]?:[piDict objectForKey:kDuration]?:@(0) intValue];
 	
 	if(durationSecond == 0) {
 		if(asset) {
@@ -467,7 +522,7 @@ static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchT
 		}
 	}	
 	
-	if(id yearID = [(__bridge NSDictionary *)piDict objectForKey:kYear]) {
+	if(id yearID = [piDict objectForKey:kYear]) {
 		if(NSString* yearSt = [NSString stringWithFormat:@"%@", yearID]) {
 			if([(NSString*)yearSt length] == 4) {
 				year = [yearSt intValue]; 
@@ -477,7 +532,7 @@ static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchT
 			}
 		}
 	}
-	if(id TrackID = [(__bridge NSDictionary *)piDict objectForKey:@"track number"]) {
+	if(id TrackID = [piDict objectForKey:@"track number"]) {
 		if([TrackID isKindOfClass:[NSNumber class]]) {
 			trackNumber = [TrackID intValue];
 		} else if([TrackID isKindOfClass:[NSString class]]) {
@@ -599,24 +654,18 @@ static void MImport_import(NSURL *mediaURL, NSDictionary *mediaInfo, BOOL fetchT
 		},
 	};
 	
-	NSLog(@"*** SSDownloadMetadata: %@", payloadImport);
+	//NSLog(@"*** SSDownloadMetadata: %@", payloadImport);
 	
 	SSDownloadMetadata *metad = [[SSDownloadMetadata alloc] initWithDictionary:payloadImport];
-	
-	
-	SSDownloadQueue *dlQueue = [[SSDownloadQueue alloc] initWithDownloadKinds:[SSDownloadQueue mediaDownloadKinds]];
 	SSDownload *downl = [[SSDownload alloc] initWithDownloadMetadata:metad];
-	
 	//[downl setDownloadHandler:nil completionBlock:^{ }];
 	
-	if([dlQueue addDownload:downl]) {
-		/*UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
-						    message:@"Added successfully. Will import automatically."
-						    delegate:nil
-						    cancelButtonTitle:@"OK" 
-						    otherButtonTitles:nil];
-		[alert show];*/
-	}
+	SSDownloadQueue *dlQueue = [[SSDownloadQueue alloc] initWithDownloadKinds:[SSDownloadQueue mediaDownloadKinds]];
+	[dlQueue addDownload:downl];
+	
+	//SSDownloadManager* dlMan = [SSDownloadManager IPodDownloadManager];
+	//[dlMan addDownloads:@[downl] completionBlock:nil];
+	
 	
 	}
 	} @catch (NSException * e) {
@@ -727,7 +776,37 @@ static __strong UINavigationController *navCon;
 }
 @end
 
+static void launchMImportNow()
+{
+	@try {
+		MImportDirBrowserController *dbtvc = [[[MImportDirBrowserController alloc] init] initWithStyle:UITableViewStyleGrouped];
+		dbtvc.path = @"/";		
+		if(!navCon) {
+			navCon = [[UINavigationController alloc] initWithNavigationBarClass:[UINavigationBar class] toolbarClass:[UIToolbar class]];
+		}		
+		[navCon setViewControllers:@[dbtvc] animated:NO];
+		[[MImportTapMenu sharedInstance] applyTabBarNavController:navCon];
+		UIViewController *vc = nil;
+		id <UIApplicationDelegate> appDele = [UIApplication sharedApplication].delegate;
+		if([appDele respondsToSelector:@selector(rootViewController)]) {
+			vc = [(UIWindow*)appDele rootViewController];
+		}
+		if(!vc) {
+			vc = [appDele window].rootViewController;
+		}
+		if([vc respondsToSelector:@selector(presentedViewController)]) {
+			if(UIViewController* presentVC = vc.presentedViewController) {
+				vc = presentVC;
+			}
+		}
+		[vc presentViewController:navCon animated:YES completion:nil];
+	} @catch (NSException * e) {
+	}
+}
 
+@interface UINavigationBar ()
+- (void)launchMImport;
+@end
 
 %hook UINavigationBar
 -(void)layoutSubviews
@@ -765,19 +844,21 @@ static __strong UINavigationController *navCon;
 	if(!receivedURLMImport) {
 		return;
 	}
-	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+	[self launchMImport];
+	/*dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 			startServer();
 			dispatch_async(dispatch_get_main_queue(), ^(void) {
 				@try {
 					MImportEditTagListController* NVBFromURL = [[%c(MImportEditTagListController) alloc] initWithURL:receivedURLMImport];
 					NVBFromURL.isFromURL = YES;
 					UINavigationController *navCon = [[UINavigationController alloc] initWithRootViewController:NVBFromURL];
+					
 					UIViewController *vc = [(UIWindow*)[UIApplication sharedApplication].delegate rootViewController];
 					[vc presentViewController:navCon animated:YES completion:nil];
 				} @catch (NSException * e) {
 				}
 			});
-	});
+	});*/
 }
 %new
 - (void)launchMImport
@@ -788,24 +869,7 @@ static __strong UINavigationController *navCon;
 	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 		startServer();
 		dispatch_async(dispatch_get_main_queue(), ^(void) {
-			@try {
-				
-				MImportDirBrowserController *dbtvc = [[[MImportDirBrowserController alloc] init] initWithStyle:UITableViewStyleGrouped];
-				dbtvc.path = @"/";
-				//UINavigationController *navCon = [[UINavigationController alloc] initWithRootViewController:dbtvc];
-				
-				if(!navCon) {
-					navCon = [[UINavigationController alloc] initWithNavigationBarClass:[UINavigationBar class] toolbarClass:[UIToolbar class]];
-				}
-				[navCon setViewControllers:@[dbtvc] animated:NO];	
-				[[MImportTapMenu sharedInstance] applyTabBarNavController:navCon];
-				
-				//UIWindow *windows = [[UIApplication sharedApplication].delegate window];
-				//UIViewController *navC = windows.rootViewController;
-				UIViewController* navC = (UINavigationController*)self.delegate;
-				[navC presentViewController:navCon animated:YES completion:nil];	
-			} @catch (NSException * e) {
-			}
+			launchMImportNow();
 		});
 	});
 }
@@ -871,25 +935,10 @@ static __strong UINavigationController *navCon;
 		
 		__strong NSURL *audioURL = fixedMImportURLCachedWithURL(self.sourceURL, nil);
 		
-		NSData *data = nil;
+		NSDictionary* piDict = [NSDictionary dictionary];
 		if([self.sourceURL isFileURL]) {
-			NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:audioURL];
-			[request setHTTPMethod:@"POST"];
-			request.cachePolicy = NSURLRequestReloadIgnoringLocalAndRemoteCacheData;
-			NSError* error = nil;
-			data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error];
-			if(error) {
-				dispatch_async(dispatch_get_main_queue(), ^(void) {
-					UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
-						    message:[error description]
-						    delegate:nil
-						    cancelButtonTitle:@"OK" 
-						    otherButtonTitles:nil];
-					[alert show];
-				});
-			}
+			piDict = fileTagsAtURL(audioURL);
 		}
-		CFDictionaryRef piDict = (__bridge CFDictionaryRef)[[NSJSONSerialization JSONObjectWithData:data?:[NSData data] options:kNilOptions error:NULL] copy];
 		
 		NSMutableDictionary* metaDataParse = [NSMutableDictionary dictionary];
 		NSDictionary *options = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:AVAssetReferenceRestrictionForbidNone], AVURLAssetReferenceRestrictionsKey, nil];
@@ -958,11 +1007,11 @@ static __strong UINavigationController *navCon;
 		}
 		
 		NSString *title, *album, *artist, *genre, *composer;
-		title     = [metaDataParse objectForKey:kTitle]?:[(__bridge NSDictionary *)piDict objectForKey:kTitle]?:[self fileName]?:@"Unknown Title";
-		album     = [metaDataParse objectForKey:@"albumName"]?:[(__bridge NSDictionary *)piDict objectForKey:kAlbum]?:@"Unknown Album";
-		artist    = [metaDataParse objectForKey:kArtist]?:[(__bridge NSDictionary *)piDict objectForKey:kArtist]?:@"Unknown Artist";
-		genre     = [(__bridge NSDictionary *)piDict objectForKey:kGenre]?:@"";
-		composer  = [(__bridge NSDictionary *)piDict objectForKey:kComposer]?:@"";
+		title     = [metaDataParse objectForKey:kTitle]?:[piDict objectForKey:kTitle]?:[self fileName]?:@"Unknown Title";
+		album     = [metaDataParse objectForKey:@"albumName"]?:[piDict objectForKey:kAlbum]?:@"Unknown Album";
+		artist    = [metaDataParse objectForKey:kArtist]?:[piDict objectForKey:kArtist]?:@"Unknown Artist";
+		genre     = [piDict objectForKey:kGenre]?:@"";
+		composer  = [piDict objectForKey:kComposer]?:@"";
 		
 		NSDateComponents *components = [[NSCalendar currentCalendar] components:NSCalendarUnitYear fromDate:[NSDate date]];
 		int year = (int)[components year];
@@ -971,13 +1020,13 @@ static __strong UINavigationController *navCon;
 		int isExplicit = 0;
 		int durationSecond = 0;
 		
-		durationSecond = [[(__bridge NSDictionary *)piDict objectForKey:kDuration]?:@(0) intValue];
+		durationSecond = [[piDict objectForKey:kDuration]?:@(0) intValue];
 
 		if(durationSecond == 0) {
 			durationSecond = CMTimeGetSeconds(asset.duration);
 		}
 		
-		if(id yearID = [(__bridge NSDictionary *)piDict objectForKey:kYear]) {
+		if(id yearID = [piDict objectForKey:kYear]) {
 			if(NSString* yearSt = [NSString stringWithFormat:@"%@", yearID]) {
 				if([(NSString*)yearSt length] == 4) {
 					year = [yearSt intValue]; 
@@ -987,7 +1036,7 @@ static __strong UINavigationController *navCon;
 				}
 			}
 		}
-		if(id TrackID = [(__bridge NSDictionary *)piDict objectForKey:@"track number"]) {
+		if(id TrackID = [piDict objectForKey:@"track number"]) {
 			if([TrackID isKindOfClass:[NSNumber class]]) {
 				trackNumber = [TrackID intValue];
 			} else if([TrackID isKindOfClass:[NSString class]]) {
@@ -1015,6 +1064,7 @@ static __strong UINavigationController *navCon;
 			kindType = 4;
 		}
 		
+		self.tags[kIsFileZip] = [piDict objectForKey:kIsFileZip]?:@NO;
 		self.tags[kExt] = ext;
 		self.tags[kSearchTitle] = title;
 		self.tags[kTitle] = title;
@@ -1100,16 +1150,47 @@ static __strong UINavigationController *navCon;
 						cell:PSTitleValueCell
 						edit:Nil];
 		[specifiers addObject:spec];
-		spec = [PSSpecifier preferenceSpecifierNamed:@"Play Media"
+		
+		spec = [PSSpecifier preferenceSpecifierNamed:@"Action's"
+		                                      target:self
+											  set:Nil
+											  get:Nil
+                                              detail:Nil
+											  cell:PSGroupCell
+											  edit:Nil];
+		[specifiers addObject:spec];
+		if([self.tags[kIsFileZip] boolValue]) {
+			spec = [PSSpecifier preferenceSpecifierNamed:@"Extract Here"
                                               target:self
                                                  set:NULL
                                                  get:NULL
                                               detail:Nil
                                                 cell:PSLinkCell
                                                 edit:Nil];
-		spec->action = @selector(playMedia);
-        [specifiers addObject:spec];
-		
+			spec->action = @selector(extractFile);
+			[specifiers addObject:spec];
+		} else {
+			spec = [PSSpecifier preferenceSpecifierNamed:@"Play Media"
+                                              target:self
+                                                 set:NULL
+                                                 get:NULL
+                                              detail:Nil
+                                                cell:PSLinkCell
+                                                edit:Nil];
+			spec->action = @selector(playMedia);
+			[specifiers addObject:spec];
+		}
+		if([self.sourceURL isFileURL]) {
+			spec = [PSSpecifier preferenceSpecifierNamed:@"Open Folder File"
+                                              target:self
+                                                 set:NULL
+                                                 get:NULL
+                                              detail:Nil
+                                                cell:PSLinkCell
+                                                edit:Nil];
+			spec->action = @selector(openFolder);
+			[specifiers addObject:spec];
+		}
 		if([self extSt].length == 0) {
 			spec = [PSSpecifier preferenceSpecifierNamed:@"Input File Extension"
 		                                      target:self
@@ -1332,6 +1413,34 @@ static __strong UINavigationController *navCon;
 	}
 	return _specifiers;
 }
+- (void)extractFile
+{
+	__block UIProgressHUD* hud = [[UIProgressHUD alloc] init];
+	NSString* path = [self.sourceURL path];
+	[hud setText:[NSString stringWithFormat:@"%@ %@", @"Extracting", [path lastPathComponent]]];
+	[hud showInView:self.view];
+	[self.view setUserInteractionEnabled:NO];
+	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+		NSString* pathDest = nil;
+		BOOL success = fileOperation(fileOperationExtract, path, nil, &pathDest);
+		dispatch_async(dispatch_get_main_queue(), ^(void) {
+			[self.view setUserInteractionEnabled:YES];
+			[hud hide];
+		});
+		if(success) {
+			dispatch_async(dispatch_get_main_queue(), ^(void) {
+				if(pathDest) {
+					MImportDirBrowserController *dbtvc = [[[MImportDirBrowserController alloc] init] initWithStyle:UITableViewStyleGrouped];
+					dbtvc.path = pathDest;
+					@try {
+						[self.navigationController pushViewController:dbtvc animated:YES];
+					} @catch (NSException * e) {
+					}
+				}
+			});
+		}
+	});
+}
 - (void)getInfoNow
 {
 	[self.view endEditing:YES];
@@ -1408,6 +1517,17 @@ static __strong UINavigationController *navCon;
 			[hud hide];
 			[self reloadSpecifiers];
 		});
+	});
+}
+- (void)openFolder
+{
+	dispatch_async(dispatch_get_main_queue(), ^(void) {
+		MImportDirBrowserController *dbtvc = [[[MImportDirBrowserController alloc] init] initWithStyle:UITableViewStyleGrouped];
+		dbtvc.path = [[self.sourceURL path] stringByDeletingLastPathComponent];
+		//@try {
+			[self.navigationController pushViewController:dbtvc animated:YES];
+		//} @catch (NSException * e) {
+		//}
 	});
 }
 - (void)playMedia
@@ -1734,6 +1854,8 @@ static __strong UINavigationController *navCon;
 }
 @end
 
+
+
 @implementation MImportDirBrowserController
 @synthesize path = _path, files = _files, selectedRows = _selectedRows, editRow = _editRow, contentDir = _contentDir, kImageAudio = _kImageAudio;
 - (id)initWithStyle:(UITableViewStyle)style
@@ -1774,7 +1896,10 @@ static __strong UINavigationController *navCon;
 	   [ext isEqualToString:@"mp4"] || // ok
 	   [ext isEqualToString:@"m4v"] || // ok
 	   [ext isEqualToString:@"mov"] || // ok
-	   [ext isEqualToString:@"3gp"] // ok	   
+	   [ext isEqualToString:@"3gp"] || // ok
+	   
+	   [ext isEqualToString:@"zip"] || // ok
+	   [ext isEqualToString:@"rar"] // ok
 	   )) {
 		return YES;
 	}
@@ -1796,11 +1921,11 @@ static __strong UINavigationController *navCon;
 	NSMutableArray* tempFiles = [NSMutableArray array];
 	NSError *error = nil;
 	//self.files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:self.path error:&error]?:[NSArray array];
-	__strong NSURL *pathURL = fixedMImportURLCachedWithURL([NSURL fileURLWithPath:self.path], nil);
+	__strong NSURL *pathURL = fixedMImportURLCachedWithURL([NSURL fileURLWithPath:self.path], @"dir");
 	//NSLog(@"**** pathURL: %@", pathURL);
 	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:pathURL];
 	request.cachePolicy = NSURLRequestReloadIgnoringLocalAndRemoteCacheData;
-	NSData *data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error];
+	NSData *data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error]?:[NSData data];
 	if(error) {
 		dispatch_async(dispatch_get_main_queue(), ^(void) {
 			UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"MImport" 
@@ -1811,9 +1936,12 @@ static __strong UINavigationController *navCon;
 			[alert show];
 		});
 	}
-	NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data?:[NSData data] options:kNilOptions error:nil];  
-	self.contentDir = [json copy];
-	self.files = [[self.contentDir objectForKey:@"content"]?:[NSDictionary dictionary] allKeys];
+	//NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil]?:@{};
+	NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:data];
+	//NSLog(@"response == %@", [unarchiver decodeObjectForKey:@"response"]);
+	self.contentDir = [unarchiver?[unarchiver decodeObjectForKey:@"response"]?:@{}:@{} copy];
+	self.files = [[self.contentDir objectForKey:@"content"]?:@{} allKeys];
+	self.files = [self.files sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
 	
 	for(NSString*file in self.files) {
 		BOOL isdir = [self fileIsDirectory:file];
@@ -1846,6 +1974,13 @@ static __strong UINavigationController *navCon;
 	}
 	static int heightView = self.view.frame.size.height;
 	[self.view setFrame:CGRectMake(self.view.frame.origin.x, self.view.frame.origin.y, self.view.frame.size.width, heightView - 50)];
+	
+	if(receivedURLMImport) {
+		MImportEditTagListController* NVBFromURL = [[%c(MImportEditTagListController) alloc] initWithURL:[receivedURLMImport copy]];
+		NVBFromURL.isFromURL = YES;
+		[self.navigationController pushViewController:NVBFromURL animated:YES];
+		receivedURLMImport = nil;
+	}
 }
 - (void)setRightButton
 {
@@ -2129,8 +2264,14 @@ static __strong UINavigationController *navCon;
 		}
     } else {
 		UIActionSheet *popup = [[UIActionSheet alloc] initWithTitle:file delegate:self cancelButtonTitle:nil destructiveButtonTitle:nil otherButtonTitles:nil];
-		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"]];
-		[popup addButtonWithTitle:@"Play"];
+		__strong NSURL *fileServerURL = fixedMImportURLCachedWithURL([NSURL fileURLWithPath:path], @"file");
+		NSDictionary* piDict = fileTagsAtURL(fileServerURL);
+		if([piDict[kIsFileZip] boolValue]) {
+			[popup addButtonWithTitle:@"Extract Here"];
+		} else {
+			[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"]];
+			[popup addButtonWithTitle:@"Play"];
+		}
 		[popup setDestructiveButtonIndex:[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Delete" value:@"Delete" table:nil]]];
 		[popup addButtonWithTitle:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Cancel" value:@"Cancel" table:nil]];
 		[popup setCancelButtonIndex:[popup numberOfButtons] - 1];
@@ -2189,9 +2330,9 @@ static __strong UINavigationController *navCon;
 		
 		return;
 	}
-	if(button == 2) {
+	if([buttonTitle isEqualToString:[[NSBundle bundleWithPath:@"/System/Library/Frameworks/UIKit.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"Delete" value:@"Delete" table:nil]]) {
 		//unlink([self pathForFile:file].UTF8String);// remove file
-		NSError* error = nil;
+		/*NSError* error = nil;
 		BOOL success = [[NSFileManager defaultManager] removeItemAtPath:path error:&error];
 		if(error != nil) {
 			dispatch_async(dispatch_get_main_queue(), ^(void) {
@@ -2202,15 +2343,56 @@ static __strong UINavigationController *navCon;
 						    otherButtonTitles:nil];
 				[alert show];
 			});
-		}
-		if(success) {
-			[self Refresh];
-		}
+		}*/
+		__block UIProgressHUD* hud = [[UIProgressHUD alloc] init];
+		[hud setText:[NSString stringWithFormat:@"%@ %@", @"Deleting", [path lastPathComponent]]];
+		[hud showInView:self.view];
+		[self.view setUserInteractionEnabled:NO];
+		dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+			BOOL success = fileOperation(fileOperationDelete, path, nil, nil);
+			if(success) {
+				dispatch_async(dispatch_get_main_queue(), ^(void) {
+					[self Refresh];
+				});
+			}
+			dispatch_async(dispatch_get_main_queue(), ^(void) {
+				[self.view setUserInteractionEnabled:YES];
+				[hud hide];
+			});
+		});
 		return;
-	}if(button == 1) {
+	} else if([buttonTitle isEqualToString:@"Extract Here"]) {
+		__block UIProgressHUD* hud = [[UIProgressHUD alloc] init];
+		[hud setText:[NSString stringWithFormat:@"%@ %@", @"Extracting", [path lastPathComponent]]];
+		[hud showInView:self.view];
+		[self.view setUserInteractionEnabled:NO];
+		dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+			NSString* pathDest = nil;
+			BOOL success = fileOperation(fileOperationExtract, path, nil, &pathDest);
+			dispatch_async(dispatch_get_main_queue(), ^(void) {
+				[self.view setUserInteractionEnabled:YES];
+				[hud hide];
+			});
+			if(success) {
+				dispatch_async(dispatch_get_main_queue(), ^(void) {
+					[self Refresh];
+					if(pathDest) {
+						MImportDirBrowserController *dbtvc = [[[MImportDirBrowserController alloc] init] initWithStyle:self.tableView.style];
+						dbtvc.path = pathDest;
+						@try {
+							[self.navigationController pushViewController:dbtvc animated:YES];
+						} @catch (NSException * e) {
+						}
+					}
+				});
+			}
+			
+		});
+		return;
+	} else if([buttonTitle isEqualToString:@"Play"]) {
 		playFromURLWithViewController(self, [NSURL fileURLWithPath:path]);
 		return;
-	} else if  (button == 0) {
+	} else if([buttonTitle isEqualToString:[[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/PhotoLibrary.framework"]?:[NSBundle mainBundle] localizedStringForKey:@"IMPORT" value:@"Import" table:@"PhotoLibrary"]]) {
 		NSString *ext = [[file pathExtension]?:@"" lowercaseString];
 		if([self extensionIsSupported:ext]) {
 			@try {	
@@ -2248,7 +2430,36 @@ static __strong UINavigationController *navCon;
 	}
 	[alert dismissWithClickedButtonIndex:-1 animated:YES];
 }
-
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath 
+{
+	return	YES;
+}
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+	@try {
+		NSString *file = [[self.files objectAtIndex:indexPath.row] copy];
+		NSString *path = [[self pathForFile:file] copy];
+		
+		__block UIProgressHUD* hud = [[UIProgressHUD alloc] init];
+		[hud setText:[NSString stringWithFormat:@"%@ %@", @"Deleting", [path lastPathComponent]]];
+		[hud showInView:self.view];
+		[self.view setUserInteractionEnabled:NO];
+		dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+			BOOL success = fileOperation(fileOperationDelete, path, nil, nil);
+			if(success) {
+				dispatch_async(dispatch_get_main_queue(), ^(void) {
+					[self Refresh];
+				});
+			}
+			dispatch_async(dispatch_get_main_queue(), ^(void) {
+				[self.view setUserInteractionEnabled:YES];
+				[hud hide];
+			});
+		});
+		return;
+	} @catch (NSException * e) {
+	}
+}
 
 @end
 
@@ -2275,7 +2486,7 @@ static __strong UINavigationController *navCon;
 				if([queryStringDictionary objectForKey:@"path"] && (!receivedURLMImport || (receivedURLMImport && ![[queryStringDictionary objectForKey:@"path"] isEqualToString:[receivedURLMImport absoluteString]]))) {
 					needShowAgainMImportURL = YES;
 					receivedURLMImport = fixURLRemoteOrLocalWithPath([queryStringDictionary objectForKey:@"path"]);
-					NSLog(@"***** DETECTEDRECEIVE URL: %@", receivedURLMImport);
+					//NSLog(@"***** DETECTEDRECEIVE URL: %@", receivedURLMImport);
 					[[NSNotificationCenter defaultCenter] performSelector:@selector(postNotificationName:) withObject:@"com.julioverne.mimport/callback" afterDelay:0.5];
 				} else if(queryStringDictionary[@"pathBase"] && (!receivedURLMImport || (receivedURLMImport && ![queryStringDictionary[@"pathBase"] isEqualToString:[receivedURLMImport absoluteString]]))) {
 					needShowAgainMImportURL = YES;
@@ -2284,7 +2495,7 @@ static __strong UINavigationController *navCon;
 					receivedURLMImportBase64 = [receivedURLMImportBase64 stringByReplacingOccurrencesOfString:@"-" withString:@"+"];
 					receivedURLMImportBase64 = [receivedURLMImportBase64 stringByReplacingOccurrencesOfString:@"." withString:@"="];
 					receivedURLMImport = [NSURL URLWithString:[[NSString alloc] initWithData:[Base64 decode:receivedURLMImportBase64] encoding:NSUTF8StringEncoding]];
-					NSLog(@"***** DETECTED RECEIVE URL: %@", receivedURLMImport);
+					//NSLog(@"***** DETECTED RECEIVE URL: %@", receivedURLMImport);
 					[[NSNotificationCenter defaultCenter] performSelector:@selector(postNotificationName:) withObject:@"com.julioverne.mimport/callback" afterDelay:0.5];
 				}
 			}
@@ -2340,37 +2551,20 @@ static __strong UINavigationController *navCon;
 %new
 - (void)launchMImport
 {
-	NSLog(@"*** launchMImport");
+	//NSLog(@"*** launchMImport");
 	if(isStartingServerInProgress) {
 		return;
 	}
 	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 		startServer();
 		dispatch_async(dispatch_get_main_queue(), ^(void) {
-			@try {
-				
-				MImportDirBrowserController *dbtvc = [[[MImportDirBrowserController alloc] init] initWithStyle:UITableViewStyleGrouped];
-				dbtvc.path = @"/";
-				//UINavigationController *navCon = [[UINavigationController alloc] initWithRootViewController:dbtvc];
-				
-				if(!navCon) {
-					navCon = [[UINavigationController alloc] initWithNavigationBarClass:[UINavigationBar class] toolbarClass:[UIToolbar class]];
-				}
-				[navCon setViewControllers:@[dbtvc] animated:NO];	
-				[[MImportTapMenu sharedInstance] applyTabBarNavController:navCon];
-				
-				UIWindow *windows = [[UIApplication sharedApplication].delegate window];
-				UIViewController *navC = windows.rootViewController;
-					
-				//UIViewController* navC = (UIViewController*)((UINavigationController*)self).delegate;
-				[navC presentViewController:navCon animated:YES completion:nil];	
-			} @catch (NSException * e) {
-			}
+			launchMImportNow();
 		});
 	});
 }
 %end
 %end
+
 
 
 __attribute__((constructor)) static void initialize_mimport()
