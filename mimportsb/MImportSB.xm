@@ -21,7 +21,7 @@ static void disableServerAndCleanCache(BOOL cleanCache)
 {
 	unlink(mimport_running);
 	if(cleanCache) {
-		[[NSFileManager defaultManager] removeItemAtPath:@MIMPORT_CACHE_URL error:nil];
+		system([NSString stringWithFormat:@"rm -rf %s", MIMPORT_CACHE_URL].UTF8String);
 	}
 }
 
@@ -137,6 +137,7 @@ static int isFileZipAtPath(NSString* path)
 					}
 					NSMutableDictionary* mutDic = [piDictRet mutableCopy];
 					mutDic[@"isFileZip"] = (isFileZipAtPath(filePath)>0)?@YES:@NO;
+					mutDic[@"fileSize"] = @([[[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:NULL]?:@{} fileSize]);
 					piDictRet = [mutDic copy];
 				}
 			}

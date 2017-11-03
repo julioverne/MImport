@@ -90,6 +90,14 @@ extern char *__progname;
 + (id)shared;
 @end
 
+@interface MImportHistoryController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate> {
+@private	
+	NSArray *_allHistoryURLs;
+}
+@property (strong) NSArray *allHistoryURLs;
++ (id)shared;
+@end
+
 @interface MImportDirBrowserController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate> {
 @private	
 	NSString *_path;
