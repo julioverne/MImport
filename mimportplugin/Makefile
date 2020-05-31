@@ -1,13 +1,14 @@
-include theos/makefiles/common.mk
+include $(THEOS)/makefiles/common.mk
 
 APPLICATION_NAME = mimportplugin
-mimportplugin_FILES = /mnt/d/codes/MImport/mimportplugin/mimportplugin.mm
-mimportplugin_FRAMEWORKS = UIKit #QuartzCore CoreGraphics
-mimportplugin_PRIVATE_FRAMEWORKS = #Preferences
-mimportplugin_CFLAGS = -fobjc-arc
-mimportplugin_LDFLAGS = -Wl,-segalign,4000
-mimportplugin_ARCHS = armv7 arm64
-export ARCHS = armv7 arm64
+
+$(APPLICATION_NAME)_FILES = /mnt/d/codes/MImport/mimportplugin/mimportplugin.mm
+$(APPLICATION_NAME)_FRAMEWORKS = UIKit #QuartzCore CoreGraphics
+$(APPLICATION_NAME)_CFLAGS = -fobjc-arc
+$(APPLICATION_NAME)_LDFLAGS = -Wl,-segalign,4000
+
+$(APPLICATION_NAME)_ARCHS = armv6 armv7 armv7s arm64 arm64e
+export ARCHS = armv6 armv7 armv7s arm64 arm64e
 
 include $(THEOS_MAKE_PATH)/application.mk
 

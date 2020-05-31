@@ -6,22 +6,52 @@
 #import "../libMImportWebServer/MImportWebServerFileResponse.h"
 #import "../libMImportWebServer/MImportWebServerDataRequest.h"
 #import "../libMImportWebServer/MImportWebServerDataResponse.h"
+#import "../libMImportWebServer/MImportWebUploader.h"
 
-#define PORT_SERVER 4194
-#define kMaxIdleTimeSeconds 2
-#define SERVER_TIMEOUT_SECONDS 3600
-
+#import "../MImportServerDefines.h"
 
 static __strong MImportWebServer* _webServer;
+static __strong MImportWebUploader* _webServerUploader;
 
 const char* mimport_running = "/private/var/mobile/Media/mimport_running";
+const char* mimport_running_uploader = "/private/var/mobile/Media/mimport_running_uploader";
+
 #define MIMPORT_CACHE_URL "/private/var/mobile/Media/mImportCache.plist"
 
 static void disableServerAndCleanCache(BOOL cleanCache)
 {
 	unlink(mimport_running);
+	unlink(mimport_running_uploader);
 	if(cleanCache) {
 		system([NSString stringWithFormat:@"rm -rf %s", MIMPORT_CACHE_URL].UTF8String);
+	}
+}
+
+static NSString* encodeBase64WithData(NSData* theData)
+{
+	@autoreleasepool {
+		const uint8_t* input = (const uint8_t*)[theData bytes];
+		NSInteger length = [theData length];
+		static char table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+		NSMutableData* data = [NSMutableData dataWithLength:((length + 2) / 3) * 4];
+		uint8_t* output = (uint8_t*)data.mutableBytes;
+		NSInteger i;
+		for (i=0; i < length; i += 3) {
+			NSInteger value = 0;
+			NSInteger j;
+			for (j = i; j < (i + 3); j++) {
+				value <<= 8;
+				if (j < length) {
+					value |= (0xFF & input[j]);
+				}
+			}
+			NSInteger theIndex = (i / 3) * 4;
+			output[theIndex + 0] =			  table[(value >> 18) & 0x3F];
+			output[theIndex + 1] =			  table[(value >> 12) & 0x3F];
+			output[theIndex + 2] = (i + 1) < length ? table[(value >> 6)  & 0x3F] : '=';
+			output[theIndex + 3] = (i + 2) < length ? table[(value >> 0)  & 0x3F] : '=';
+		}
+		return [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
 	}
 }
 
@@ -50,7 +80,7 @@ static int isFileZipAtPath(NSString* path)
 - (void)mimportAllocServer;
 @end
 
-@interface MImportServer : NSObject
+@interface MImportServer : NSObject <MImportWebUploaderDelegate>
 +(MImportServer*)shared;
 - (void)resetTimeOutCheck;
 @end
@@ -72,6 +102,21 @@ static int isFileZipAtPath(NSString* path)
 {
 	disableServerAndCleanCache(YES);
 }
+
+- (void)webUploader:(MImportWebUploader*)uploader didUploadFileAtPath:(NSString*)path
+{
+	NSString* base64StringURL = nil;
+	NSURL* url = [NSURL fileURLWithPath:path];
+	if(url && [(id)url isKindOfClass:[NSURL class]]) {
+		base64StringURL = encodeBase64WithData([[(NSURL*)url absoluteString] dataUsingEncoding:NSUTF8StringEncoding]);
+		base64StringURL = [base64StringURL stringByReplacingOccurrencesOfString:@"/" withString:@"_"];
+		base64StringURL = [base64StringURL stringByReplacingOccurrencesOfString:@"+" withString:@"-"];
+		base64StringURL = [base64StringURL stringByReplacingOccurrencesOfString:@"=" withString:@"."];
+		if(base64StringURL) {
+			[[UIApplication sharedApplication] openURL:[NSURL URLWithString:[NSString stringWithFormat:@"music:///mimport?pathBase=%@", base64StringURL]]];
+		}
+	}
+}
 @end
 
 %hook SpringBoard
@@ -87,7 +132,7 @@ static int isFileZipAtPath(NSString* path)
 	if(_webServer) {
 		return;
 	}
-	dlopen("/usr/lib/libMImportWebServer.dylib", RTLD_LAZY | RTLD_GLOBAL);
+	//dlopen("/usr/lib/libMImportWebServer.dylib", RTLD_LAZY | RTLD_GLOBAL);
 	_webServer = [[objc_getClass("MImportWebServer") alloc] init];
 	
 	
@@ -217,6 +262,21 @@ static int isFileZipAtPath(NSString* path)
 				[_webServer stop];
 			}
 		}
+		if(access(mimport_running_uploader, F_OK) == 0) {
+			if(!_webServerUploader) {
+				static __strong NSString* kDocs = @"//var/mobile/";
+				_webServerUploader = [[objc_getClass("MImportWebUploader") alloc] initWithUploadDirectory:kDocs];
+				_webServerUploader.delegate = [MImportServer shared];
+				_webServerUploader.allowHiddenItems = YES;
+			}
+			if(_webServerUploader != nil && !_webServerUploader.running) {
+				[_webServerUploader startWithPort:PORT_SERVER_SHARE bonjourName:nil];
+			}			
+		} else {
+			if(_webServerUploader != nil && _webServerUploader.running) {
+				[_webServerUploader stop];
+			}
+		}		
 	}
 }
 %end

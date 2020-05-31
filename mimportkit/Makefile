@@ -1,14 +1,17 @@
-include theos/makefiles/common.mk
+include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = MImportKit
-MImportKit_FILES = /mnt/d/codes/MImport/mimportkit/MImportKit.xm
 
-MImportKit_FRAMEWORKS = UIKit Foundation CoreFoundation CydiaSubstrate
-MImportKit_PRIVATE_FRAMEWORKS = 
-MImportKit_CFLAGS = -fobjc-arc -std=c++11
-MImportKit_LDFLAGS = -lz -Wl,-segalign,4000 -Wl,-undefined,dynamic_lookup
-export ARCHS = armv7 arm64
-MImportKit_ARCHS = armv7 arm64
+$(TWEAK_NAME)_FILES = /mnt/d/codes/MImport/mimportkit/MImportKit.xm
+
+$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation CoreFoundation CydiaSubstrate
+$(TWEAK_NAME)_PRIVATE_FRAMEWORKS = 
+$(TWEAK_NAME)_CFLAGS = -fobjc-arc
+$(TWEAK_NAME)_LDFLAGS = -Wl,-segalign,4000
+
+export ARCHS = armv6 armv7 armv7s arm64 arm64e
+$(TWEAK_NAME)_ARCHS = armv6 armv7 armv7s arm64 arm64e
+
 include $(THEOS_MAKE_PATH)/tweak.mk
 
 all::

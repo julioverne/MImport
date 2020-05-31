@@ -1,6 +1,7 @@
-#define _Bool BOOL
 #import <prefs.h>
 #import <CommonCrypto/CommonCrypto.h>
+#import <ifaddrs.h>
+#import <arpa/inet.h>
 
 enum {
   fileOperationNone             = 0,
@@ -22,7 +23,13 @@ enum {
 #define kIPIMediaEBook		@"ebook"	// E-Book
 #define kIPIMediaTVEpisode	@"tv-episode"	// TV episode
 
-#define PORT_SERVER 4194
+#import "../MImportServerDefines.h"
+
+#ifndef kCFCoreFoundationVersionNumber_iOS_13_0
+#define kCFCoreFoundationVersionNumber_iOS_13_0 1665.15
+#endif
+
+#define is_iOS13 kCFCoreFoundationVersionNumber >= kCFCoreFoundationVersionNumber_iOS_13_0
 
 extern char *__progname;
 #define isDeviceIPad (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
@@ -40,9 +47,9 @@ extern char *__progname;
 @interface LSApplicationProxy : NSObject
 @property (nonatomic,readonly) NSDictionary * groupContainerURLs; // iOS 8 - 10.2
 @property (nonatomic, readonly) NSString *applicationIdentifier;
+@property (nonatomic, readonly) NSString *applicationType;
 + (id)applicationProxyForIdentifier:(id)arg1;
 - (NSURL*)containerURL;
-- (NSURL*)boundContainerURL;
 - (id)localizedName;
 @end
 
@@ -53,10 +60,12 @@ extern char *__progname;
 
 @interface SSDownloadMetadata : NSObject
 @property(retain) NSURL * primaryAssetURL;
+@property bool shouldDownloadAutomatically;
 - (id)initWithDictionary:(id)arg1;
 @end
 
 @interface SSDownloadQueue : NSObject
+@property (nonatomic) bool shouldAutomaticallyFinishDownloads;
 + (id)mediaDownloadKinds;
 + (id)IPodDownloadKinds;
 - (id)initWithDownloadKinds:(id)arg1;
@@ -66,9 +75,23 @@ extern char *__progname;
 @interface SSDownloadManager : NSObject
 + (id)IPodDownloadManager;
 - (void)addDownloads:(id)arg1 completionBlock:(id /* block */)arg2;
+- (void)setDownloads:(id)arg1 completionBlock:(id /* block */)arg2;
+
+- (void)_pauseDownloads:(id)arg1 forced:(bool)arg2 completionBlock:(id /* block */)arg3;
 @end
 
+@interface SSImportDownloadToIPodLibraryRequest : NSObject
+- (id)initWithDownloadMetadata:(id)arg1;
+
+- (bool)start;
+- (void)startWithResponseBlock:(id /* block */)arg1;
+@end
+
+
 @interface SSDownload : NSObject
+
+@property (nonatomic, retain) NSArray *assets;
+
 - (id)initWithDownloadMetadata:(id)arg1;
 -(void)setDownloadHandler:(id)arg1 completionBlock:(id)arg2 ;
 
@@ -77,6 +100,13 @@ extern char *__progname;
 - (void)resume;
 @end
 
+
+@interface MImportImportWithController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate>
+@property (strong) NSArray *allUserApps;
+@property (strong) NSArray *allSystemApps;
+@property (strong) NSArray *allSharedGroup;
++ (id)shared;
+@end
 
 @interface MImportAppsController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate> {
 @private	
@@ -87,6 +117,7 @@ extern char *__progname;
 @property (strong) NSArray *allUserApps;
 @property (strong) NSArray *allSystemApps;
 @property (strong) NSArray *allSharedGroup;
+@property (strong) UIProgressHUD* hud;
 + (id)shared;
 @end
 
@@ -95,6 +126,15 @@ extern char *__progname;
 	NSArray *_allHistoryURLs;
 }
 @property (strong) NSArray *allHistoryURLs;
++ (id)shared;
+@end
+
+
+@interface MImportFavoriteController : UITableViewController <UITableViewDelegate, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate> {
+@private	
+	NSDictionary *_allFavURLs;
+}
+@property (strong) NSDictionary *allFavURLs;
 + (id)shared;
 @end
 
@@ -113,6 +153,7 @@ extern char *__progname;
 @property (assign) BOOL editRow;
 @property (strong) NSDictionary *contentDir;
 @property (strong) UIImage *kImageAudio;
+@property (strong) UIProgressHUD* hud;
 @end
 
 @interface UIActionSheet ()
@@ -136,6 +177,28 @@ extern char *__progname;
 - (void) _updateFrameForDisplay;
 @end
 
+@interface MImportDropboxController : UITableViewController <UIWebViewDelegate, UIAlertViewDelegate, UITableViewDelegate, UITableViewDataSource, UIActionSheetDelegate, UITabBarDelegate, UITabBarControllerDelegate> {
+@private
+    UIWebView *webView;
+	UIView* oldView;
+	NSString *startURL;
+	NSString *returnURL;
+	NSString *access_token;
+	NSString *pathDir;
+	NSArray* contents;
+}
+
+@property (nonatomic, readonly) UIWebView *webView;
+@property (nonatomic, retain) UIView *oldView;
+@property (nonatomic, retain) NSArray* contents;
+@property (nonatomic, retain) NSString *startURL;
+@property (nonatomic, retain) NSString *returnURL;
+@property (nonatomic, retain) NSString *access_token;
+@property (nonatomic, retain) NSString *pathDir;
+@property (nonatomic, readonly) UIActivityIndicatorView *loadingView;
+@property (strong) UIProgressHUD* hud;
+@end
+
 @interface MImportEditTagListController : PSListController <UIActionSheetDelegate, UIImagePickerControllerDelegate> {
 @private	
 	NSURL *_sourceURL;
@@ -145,6 +208,8 @@ extern char *__progname;
 @property (strong) NSURL *sourceURL;
 @property (strong) NSMutableDictionary *tags;
 @property (assign) BOOL isFromURL;
+@property (assign) BOOL showConvertTool;
+@property (strong) UIProgressHUD* hud;
 - (id)initWithURL:(NSURL*)inURL;
 - (void)importFileNow;
 @end
@@ -156,3 +221,8 @@ extern char *__progname;
 @property (strong) NSString *info;
 @property (strong) NSString *bundleId;
 @end
+
+@interface MImportUploadController : UITableViewController
++ (instancetype)sharedInstance;
+@end
+

@@ -76,7 +76,7 @@ static NSURL* fixURLRemoteOrLocalWithPath(NSString* inPath)
 	}
 }
 %end
-%hook UIActivityViewController
+%hook UIActivityViewControllerClass
 - (void)_performActivity:(UIOpenWithAppActivityClass *)arg1
 {
 	if(arg1) {
@@ -88,9 +88,9 @@ static NSURL* fixURLRemoteOrLocalWithPath(NSString* inPath)
 				
 				if([self respondsToSelector:@selector(activityItems)]) {
 					id pathFile = nil;
-					if(self.activityItems) {
-						NSLog(@"self.activityItems = %@", self.activityItems);
-						for(id now in self.activityItems) {
+					if([self activityItems]) {
+						NSLog(@"self.activityItems = %@", [self activityItems]);
+						for(id now in [self activityItems]) {
 							if(now) {
 								pathFile = now;
 								if([now isKindOfClass:[NSURL class]]) {
@@ -132,7 +132,7 @@ static NSURL* fixURLRemoteOrLocalWithPath(NSString* inPath)
 					}
 					
 					if(!pathFileURL) {
-						for(id now in self.activityItems) {
+						for(id now in [self activityItems]) {
 							if([now isKindOfClass:[NSURL class]]) {
 								pathFileURL = now;
 								break;
@@ -190,8 +190,11 @@ static NSURL* fixURLRemoteOrLocalWithPath(NSString* inPath)
 %end
 %end
 
+
 %ctor
 {
-	UIOpenWithAppActivityClassName = objc_getClass("_UIOpenWithAppActivity")?:objc_getClass("_UIDocumentInteractionControllerOpenWithAppActivity");
-	%init(MImportKit, UIOpenWithAppActivityClass = UIOpenWithAppActivityClassName);
+	if(kCFCoreFoundationVersionNumber < 1443.00) { // < 11.0
+		UIOpenWithAppActivityClassName = objc_getClass("_UIOpenWithAppActivity")?:objc_getClass("_UIDocumentInteractionControllerOpenWithAppActivity")?:objc_getClass("UIActivity");
+		%init(MImportKit, UIOpenWithAppActivityClass = UIOpenWithAppActivityClassName, UIActivityViewControllerClass = objc_getClass("UIActivityViewController")?:objc_getClass("_UIDICActivityViewController"));
+	}
 }

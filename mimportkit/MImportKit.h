@@ -23,6 +23,6 @@
 - (id)initWithApplicationIdentifier:(id)arg1 documentInteractionController:(id)arg2 appIsOwner:(bool)arg3; // iOS 10
 @end
 
-@interface UIActivityViewController (gg)
+@interface UIActivityViewControllerClass : UIActivityViewController
 @property (nonatomic, copy) NSArray *activityItems;
 @end

@@ -57,6 +57,19 @@ static NSString* encodeBase64WithData(NSData* theData)
 				waitForMe = YES;
 				NSLog(@"*** url: %@ \n error: %@", url, error);
 				if(url && [(id)url isKindOfClass:[NSURL class]]) {
+					if([(NSURL*)url isFileURL]) {
+						NSString* origFile = [(NSURL*)url path];
+						NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:[origFile lastPathComponent]];
+						@autoreleasepool {
+							NSData *data = [[NSFileManager defaultManager] contentsAtPath:origFile];
+							if(data) {
+								[data writeToFile:filePath atomically:YES];
+							}
+						}
+						if([[NSFileManager defaultManager] fileExistsAtPath:filePath isDirectory:nil]) {
+							url = [NSURL fileURLWithPath:filePath];
+						}
+					}
 					base64StringURL = encodeBase64WithData([[(NSURL*)url absoluteString] dataUsingEncoding:NSUTF8StringEncoding]);
 					base64StringURL = [base64StringURL stringByReplacingOccurrencesOfString:@"/" withString:@"_"];
 					base64StringURL = [base64StringURL stringByReplacingOccurrencesOfString:@"+" withString:@"-"];
@@ -70,8 +83,8 @@ static NSString* encodeBase64WithData(NSData* theData)
 			while(waitForMe) {
 				sleep(1/4);
 			}
-		}
-		
+			
+		}	
 	} @catch(NSException *e) {
 	}	
 }

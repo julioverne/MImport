@@ -66,7 +66,7 @@
 		[spec setProperty:[UIImage imageWithContentsOfFile:[[self bundle] pathForResource:@"twitter" ofType:@"png"]] forKey:@"iconImage"];
         [specifiers addObject:spec];
 		spec = [PSSpecifier emptyGroupSpecifier];
-        [spec setProperty:@"MImport © 2017 julioverne" forKey:@"footerText"];
+        [spec setProperty:@"MImport © 2020 julioverne" forKey:@"footerText"];
         [specifiers addObject:spec];
 		_specifiers = [specifiers copy];
 	}
@@ -132,7 +132,7 @@
 		_label.font = [UIFont fontWithName:@"HelveticaNeue-UltraLight" size:48];
 		[_label setText:@"MImport"];
 		[_label setBackgroundColor:[UIColor clearColor]];
-		_label.textColor = [UIColor blackColor];
+		//_label.textColor = [UIColor blackColor];
 		_label.textAlignment = NSTextAlignmentCenter;
 		_label.alpha = 0;
 
