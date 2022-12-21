@@ -13,7 +13,3 @@ export ARCHS = armv6 armv7 armv7s arm64 arm64e
 $(TWEAK_NAME)_ARCHS = armv6 armv7 armv7s arm64 arm64e
 
 include $(THEOS_MAKE_PATH)/tweak.mk
-	
-	
-all::
-	

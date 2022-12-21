@@ -105,6 +105,8 @@ static UIImage* kImageDirGet()
 }
 
 static __strong NSURL* receivedURLMImport;
+static BOOL receivedURLMImport_autoFetchTags;
+
 static BOOL needShowAgainMImportURL;
 
 static BOOL showAllFileTypes;
@@ -2314,6 +2316,11 @@ static NSString * formatTimeFromSeconds(int numberOfSeconds)
 			[hud hide];
 			[self.view setUserInteractionEnabled:YES];
 			[self reloadSpecifiers];
+			
+			if(receivedURLMImport_autoFetchTags) {
+				receivedURLMImport_autoFetchTags = NO;
+				[self getInfoNow];
+			}
 		});
 	});
 	
@@ -2740,8 +2747,23 @@ static NSString * formatTimeFromSeconds(int numberOfSeconds)
 		[spec setProperty:kExplicit forKey:@"key"];
 		[specifiers addObject:spec];
 		
+		if([self.sourceURL isFileURL] && [extensionType isEqualToString:@"mp3"]) {
+			spec = [PSSpecifier emptyGroupSpecifier];
+			[specifiers addObject:spec];
+			[spec setProperty:@"Will Save The Currently Tags To mp3 File Permanently" forKey:@"footerText"];
+			spec = [PSSpecifier preferenceSpecifierNamed:@"Overwrite ID3Tags In File Now"
+                                              target:self
+                                                 set:NULL
+                                                 get:NULL
+                                              detail:Nil
+                                                cell:PSLinkCell
+                                                edit:Nil];
+			spec->action = @selector(writeID3Tags);
+			[specifiers addObject:spec];
+		}
+		
 		spec = [PSSpecifier emptyGroupSpecifier];
-		[spec setProperty:[NSString stringWithFormat:@"Source:\n%@", self.sourceURL] forKey:@"footerText"];
+		[spec setProperty:[NSString stringWithFormat:@"\n\nSource:\n%@", self.sourceURL] forKey:@"footerText"];
 		[specifiers addObject:spec];
 		
 		spec = [PSSpecifier emptyGroupSpecifier];
@@ -2751,6 +2773,76 @@ static NSString * formatTimeFromSeconds(int numberOfSeconds)
 	}
 	return _specifiers;
 }
+
+- (void)writeID3Tags
+{
+	NSMutableData* dataMut = [[NSMutableData alloc] init];
+	NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc] initForWritingWithMutableData:dataMut];
+	
+	if(self.sourceURL) {
+		[archiver encodeObject:[self.sourceURL path] forKey:@"path"];
+	}
+	
+	if(self.tags[kTitle]) {
+		[archiver encodeObject:self.tags[kTitle] forKey:kTitle];
+	}
+	if(self.tags[kArtist]) {
+		[archiver encodeObject:self.tags[kArtist] forKey:kArtist];
+	}
+	if(self.tags[kAlbum]) {
+		[archiver encodeObject:self.tags[kAlbum] forKey:kAlbum];
+	}
+	
+	if(self.tags[kGenre]) {
+		[archiver encodeObject:self.tags[kGenre] forKey:kGenre];
+	}
+	if(self.tags[kTrackNumber]) {
+		[archiver encodeObject:self.tags[kTrackNumber] forKey:kTrackNumber];
+	}
+	if(self.tags[kComposer]) {
+		[archiver encodeObject:self.tags[kComposer] forKey:kComposer];
+	}
+	if(self.tags[kYear]) {
+		[archiver encodeObject:self.tags[kYear] forKey:kYear];
+	}
+	
+	
+	if(self.tags[kArtwork]) {
+		[archiver encodeObject:self.tags[kArtwork] forKey:@"artwork"];
+	}
+	
+	[archiver finishEncoding];
+	
+	BOOL result = NO;
+	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:kUrlServer]];
+	[request setHTTPMethod:@"WID3"];
+	[request setTimeoutInterval:3600];
+	[request setHTTPBody:dataMut];
+	request.cachePolicy = NSURLRequestReloadIgnoringLocalAndRemoteCacheData;
+	NSError* error = nil;
+	__autoreleasing NSData* data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:&error];
+	if(data) {
+		NSDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil]?:@{};
+		result = [jsonDic[@"result"]?:@NO boolValue];
+		
+		dispatch_async(dispatch_get_main_queue(), ^(void) {
+			NSString* titleSt = @"MImport";
+			NSString* messageSt = (result&&error==nil)?@"ID3 Tags Saved.":error!=nil?[error localizedDescription]:@"Error";
+			NSString* okSt = @"OK";
+			
+			if(%c(UIAlertController) != nil) {
+				UIAlertController* alert = [%c(UIAlertController) alertControllerWithTitle:titleSt message:messageSt preferredStyle:UIAlertControllerStyleAlert];
+				UIAlertAction* defaultAction = [%c(UIAlertAction) actionWithTitle:okSt style:UIAlertActionStyleDefault handler:nil];
+				[alert addAction:defaultAction];
+				[topMostController() presentViewController:alert animated:YES completion:nil];
+			} else {
+				UIAlertView *alert = [[%c(UIAlertView) alloc] initWithTitle:titleSt message:messageSt delegate:nil cancelButtonTitle:okSt otherButtonTitles:nil];
+				[alert show];
+			}
+		});
+	}
+}
+
 - (void)showConvertMedia
 {
 	self.showConvertTool = YES;
@@ -2775,13 +2867,13 @@ static NSString * formatTimeFromSeconds(int numberOfSeconds)
 		BOOL success = NO;
 		
 		@autoreleasepool {
-			NSURL* url = [NSURL URLWithString:@"https://s21.aconvert.com/convert/convert-batch.php"];
+			NSURL* url = [NSURL URLWithString:@"https://s23.aconvert.com/convert/convert-batch3.php"];
 			NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData timeoutInterval:999999.0];
 			[request setHTTPMethod:@"POST"];
 			
 			[request setValue:@"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36" forHTTPHeaderField: @"User-Agent"];
 			[request setValue:@"https://www.aconvert.com" forHTTPHeaderField: @"Origin"];
-			[request setValue:@"https://www.aconvert.com/audio/" forHTTPHeaderField: @"Referer"];
+			[request setValue:@"https://www.aconvert.com/" forHTTPHeaderField: @"Referer"];
 			[request setValue:@"same-site" forHTTPHeaderField: @"Sec-Fetch-Site"];
 			[request setValue:@"cors" forHTTPHeaderField: @"Sec-Fetch-Mode"];
 			[request setValue:@"empty" forHTTPHeaderField: @"Sec-Fetch-Dest"];
@@ -2837,7 +2929,7 @@ static NSString * formatTimeFromSeconds(int numberOfSeconds)
 			
 			NSString* file = jsonResp[@"filename"];
 			if(file) {
-				newURLSt = [[NSString stringWithFormat:@"https://s21.aconvert.com/convert/p3r68-cdx67/%@", file] copy];
+				newURLSt = [[NSString stringWithFormat:@"https://s23.aconvert.com/convert/p3r68-cdx67/%@", file] copy];
 				success = YES;
 			}
 		}
@@ -3959,9 +4051,9 @@ static NSString * formatTimeFromSeconds(int numberOfSeconds)
 - (void)selectAllRow
 {
 	self.selectedRows = [NSMutableArray array];
-	for(int i = 0; i <= [self tableView:(UITableView*)self numberOfRowsInSection:0]; i++) {
+	for(int i = 0; i < [self tableView:(UITableView*)self numberOfRowsInSection:0]; i++) {
 		NSIndexPath *indexPath = [NSIndexPath indexPathForRow:i inSection:0];
-		UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+		UITableViewCell *cell = [self tableView:self.tableView cellForRowAtIndexPath:indexPath];
 		if(cell) {
 			if(cell.accessoryType != UITableViewCellAccessoryDisclosureIndicator) {
 				[self.selectedRows addObject:@(indexPath.row)];
@@ -4424,34 +4516,37 @@ static NSString * formatTimeFromSeconds(int numberOfSeconds)
 	id ret = %orig;
 	if(ret) {
 		@try{
-		if([ret isEqualToString:@"music"] && [[self lastPathComponent] isEqualToString:@"mimport"]) {
-			if(NSString* query = [self query]) {
-				NSMutableDictionary *queryStringDictionary = [[NSMutableDictionary alloc] init];
-				NSArray *urlComponents = [query componentsSeparatedByString:@"&"];
-				for (NSString *keyValuePair in urlComponents) {
-					NSArray *pairComponents = [keyValuePair componentsSeparatedByString:@"="];
-					NSString *key = [[pairComponents firstObject] stringByRemovingPercentEncoding];
-					NSString *value = [[pairComponents lastObject] stringByRemovingPercentEncoding];
-					queryStringDictionary[key] = value;
+			if([ret isEqualToString:@"music"] && [[self lastPathComponent] isEqualToString:@"mimport"]) {
+				if(NSString* query = [self query]) {
+					NSMutableDictionary *queryStringDictionary = [[NSMutableDictionary alloc] init];
+					NSArray *urlComponents = [query componentsSeparatedByString:@"&"];
+					for (NSString *keyValuePair in urlComponents) {
+						NSArray *pairComponents = [keyValuePair componentsSeparatedByString:@"="];
+						NSString *key = [[pairComponents firstObject] stringByRemovingPercentEncoding];
+						NSString *value = [[pairComponents lastObject] stringByRemovingPercentEncoding];
+						queryStringDictionary[key] = value;
+					}
+					
+					receivedURLMImport_autoFetchTags = [queryStringDictionary objectForKey:@"fetchTags"]!=nil;
+					
+					if([queryStringDictionary objectForKey:@"path"] && (!receivedURLMImport || (receivedURLMImport && ![[queryStringDictionary objectForKey:@"path"] isEqualToString:[receivedURLMImport absoluteString]]))) {
+						needShowAgainMImportURL = YES;
+						receivedURLMImport = fixURLRemoteOrLocalWithPath([queryStringDictionary objectForKey:@"path"]);
+						//NSLog(@"***** DETECTEDRECEIVE URL: %@", receivedURLMImport);
+						[[NSNotificationCenter defaultCenter] performSelector:@selector(postNotificationName:) withObject:@"com.julioverne.mimport/callback" afterDelay:0.5];
+					} else if(queryStringDictionary[@"pathBase"] && (!receivedURLMImport || (receivedURLMImport && ![queryStringDictionary[@"pathBase"] isEqualToString:[receivedURLMImport absoluteString]]))) {
+						needShowAgainMImportURL = YES;
+						NSString* receivedURLMImportBase64 = queryStringDictionary[@"pathBase"];
+						receivedURLMImportBase64 = [receivedURLMImportBase64 stringByReplacingOccurrencesOfString:@"_" withString:@"/"];
+						receivedURLMImportBase64 = [receivedURLMImportBase64 stringByReplacingOccurrencesOfString:@"-" withString:@"+"];
+						receivedURLMImportBase64 = [receivedURLMImportBase64 stringByReplacingOccurrencesOfString:@"." withString:@"="];
+						receivedURLMImport = [NSURL URLWithString:[[NSString alloc] initWithData:base64DataFromString(receivedURLMImportBase64) encoding:NSUTF8StringEncoding]];
+						//NSLog(@"***** DETECTED RECEIVE URL: %@", receivedURLMImport);
+						[[NSNotificationCenter defaultCenter] performSelector:@selector(postNotificationName:) withObject:@"com.julioverne.mimport/callback" afterDelay:0.5];
+					}
 				}
-				if([queryStringDictionary objectForKey:@"path"] && (!receivedURLMImport || (receivedURLMImport && ![[queryStringDictionary objectForKey:@"path"] isEqualToString:[receivedURLMImport absoluteString]]))) {
-					needShowAgainMImportURL = YES;
-					receivedURLMImport = fixURLRemoteOrLocalWithPath([queryStringDictionary objectForKey:@"path"]);
-					//NSLog(@"***** DETECTEDRECEIVE URL: %@", receivedURLMImport);
-					[[NSNotificationCenter defaultCenter] performSelector:@selector(postNotificationName:) withObject:@"com.julioverne.mimport/callback" afterDelay:0.5];
-				} else if(queryStringDictionary[@"pathBase"] && (!receivedURLMImport || (receivedURLMImport && ![queryStringDictionary[@"pathBase"] isEqualToString:[receivedURLMImport absoluteString]]))) {
-					needShowAgainMImportURL = YES;
-					NSString* receivedURLMImportBase64 = queryStringDictionary[@"pathBase"];
-					receivedURLMImportBase64 = [receivedURLMImportBase64 stringByReplacingOccurrencesOfString:@"_" withString:@"/"];
-					receivedURLMImportBase64 = [receivedURLMImportBase64 stringByReplacingOccurrencesOfString:@"-" withString:@"+"];
-					receivedURLMImportBase64 = [receivedURLMImportBase64 stringByReplacingOccurrencesOfString:@"." withString:@"="];
-					receivedURLMImport = [NSURL URLWithString:[[NSString alloc] initWithData:base64DataFromString(receivedURLMImportBase64) encoding:NSUTF8StringEncoding]];
-					//NSLog(@"***** DETECTED RECEIVE URL: %@", receivedURLMImport);
-					[[NSNotificationCenter defaultCenter] performSelector:@selector(postNotificationName:) withObject:@"com.julioverne.mimport/callback" afterDelay:0.5];
-				}
+				ret = @"https";
 			}
-			ret = @"https";
-		}
 		} @catch (NSException * e) {
 		}
 	}	
